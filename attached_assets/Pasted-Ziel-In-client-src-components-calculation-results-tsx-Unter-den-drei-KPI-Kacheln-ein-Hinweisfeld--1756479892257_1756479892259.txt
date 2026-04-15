@@ -1,0 +1,218 @@
+Ziel
+
+In client/src/components/calculation-results.tsx:
+
+Unter den drei KPI-Kacheln ein Hinweisfeld anzeigen, wenn inputs.inflationAdjusted === true:
+„Hinweis: Die errechneten Werte sind um ca. 2.5% p.a. inflationsbereinigt.“
+
+In der Worst-Case-Kachel zusätzlich: „entspricht ca. x% p.a.“.
+Regel:
+
+Ohne Monatsraten (inputs.monthlyAmount === 0) → CAGR aus Einmalbetrag → Worst-Case-Endwert.
+
+Mit Monatsraten (> 0) → IRR (XIRR-ähnlich, hier monatliche IRR) auf Basis der monatlichen Cashflows (Einzahlungen negativ, Terminalwert positiv); anschließend p.a.: 
+(
+1
++
+𝑟
+𝑚
+𝑜
+𝑛
+)
+12
+−
+1
+(1+r
+mon
+	​
+
+)
+12
+−1.
+
+Falls IRR nicht konvergiert → stiller Fallback auf CAGR von (Summe Einzahlungen) → Endwert.
+
+Änderungen
+
+Öffne client/src/components/calculation-results.tsx.
+
+Oben (nach den bestehenden Imports) füge die folgenden Hilfsfunktionen ein (IRR + Hilfs-CAGR):
+
+// ---- Hilfsfunktionen für p.a.-Ermittlung in der Worst-Case-Kachel ----
+
+// CAGR aus Startwert -> Endwert über Jahre
+function calcCAGR(startValue: number, endValue: number, years: number): number | null {
+  if (startValue <= 0 || endValue <= 0 || years <= 0) return null;
+  const cagr = Math.pow(endValue / startValue, 1 / years) - 1;
+  return isFinite(cagr) ? cagr : null;
+}
+
+// Robuste IRR (monatlich) via Newton-Raphson mit Bisection-Fallback, annualisiert (p.a.)
+function calcAnnualizedIRRFromMonthlyFlows(cashflows: number[]): number | null {
+  // NPV(r) = sum_{t=0..N} CF_t / (1+r)^t
+  const npv = (r: number) => {
+    let v = 0;
+    for (let t = 0; t < cashflows.length; t++) {
+      v += cashflows[t] / Math.pow(1 + r, t);
+    }
+    return v;
+  };
+  const dnpv = (r: number) => {
+    let v = 0;
+    for (let t = 1; t < cashflows.length; t++) {
+      v += -t * cashflows[t] / Math.pow(1 + r, t + 1);
+    }
+    return v;
+  };
+
+  // Erst Newton-Raphson
+  let r = 0.003; // ~0.3% mtl Startwert (~3.7% p.a.)
+  for (let i = 0; i < 50; i++) {
+    const f = npv(r);
+    const df = dnpv(r);
+    if (Math.abs(df) < 1e-12) break;
+    const step = f / df;
+    r -= step;
+    if (!isFinite(r)) break;
+    if (Math.abs(step) < 1e-10) break;
+  }
+  if (isFinite(r) && r > -0.99 && r < 1.0 && Math.abs(npv(r)) < 1e-6) {
+    const annual = Math.pow(1 + r, 12) - 1;
+    return isFinite(annual) ? annual : null;
+  }
+
+  // Fallback: Bisection in plausiblen Grenzen (mtl -99% .. +100%)
+  let lo = -0.99, hi = 1.0;
+  let fLo = npv(lo), fHi = npv(hi);
+  if (isNaN(fLo) || isNaN(fHi)) return null;
+
+  // Wenn kein Vorzeichenwechsel, versuch Grenzen zu erweitern (rudimentär)
+  if (fLo * fHi > 0) {
+    // Kein garantierter Root; IRR evtl. nicht definiert
+    return null;
+  }
+
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    const fMid = npv(mid);
+    if (Math.abs(fMid) < 1e-8 || (hi - lo) < 1e-8) {
+      const annual = Math.pow(1 + mid, 12) - 1;
+      return isFinite(annual) ? annual : null;
+    }
+    if (fLo * fMid <= 0) {
+      hi = mid; fHi = fMid;
+    } else {
+      lo = mid; fLo = fMid;
+    }
+  }
+  const mid = (lo + hi) / 2;
+  const annual = Math.pow(1 + mid, 12) - 1;
+  return isFinite(annual) ? annual : null;
+}
+
+
+Nach const chartData = calculateScenarios(); füge die p.a.-Berechnung und den Inflationshinweis ein:
+
+  // === Jahre, Worst-Case Endwert & p.a.-Text ===
+  const years = inputs.targetAge - inputs.currentAge;
+  const worstEndValue = chartData[chartData.length - 1]?.worstCase ?? result.worstCase;
+
+  let worstCasePaText = '';
+  if (years > 0 && worstEndValue > 0) {
+    if ((inputs.monthlyAmount ?? 0) <= 0) {
+      // Einmalanlage: CAGR
+      const cagr = calcCAGR(inputs.oneTimeAmount, worstEndValue, years);
+      if (cagr !== null) {
+        worstCasePaText = `entspricht ca. ${(cagr * 100).toFixed(2)}% p.a.`;
+      }
+    } else {
+      // Laufende Raten: IRR (monatliche CFs, Endwert positiv)
+      const months = years * 12;
+      const cf: number[] = [];
+      // t=0: Einmalbetrag als Einzahlung (negativ)
+      cf.push(-(inputs.oneTimeAmount || 0));
+      for (let m = 1; m <= months; m++) {
+        const yIdx = Math.floor((m - 1) / 12);
+        const monthlyAmt = (inputs.monthlyAmount || 0) * Math.pow(1 + (inputs.annualIncrease || 0) / 100, yIdx);
+        // Einzahlungen sind negativ
+        cf.push(-monthlyAmt);
+      }
+      // Terminalwert am Ende positiv
+      cf[cf.length - 1] += worstEndValue;
+
+      const irrAnn = calcAnnualizedIRRFromMonthlyFlows(cf);
+      if (irrAnn !== null) {
+        worstCasePaText = `entspricht ca. ${(irrAnn * 100).toFixed(2)}% p.a.`;
+      } else {
+        // Fallback: CAGR auf Summe der Einzahlungen -> Endwert
+        const totalIn = cf.reduce((s, v) => s + (v < 0 ? -v : 0), 0);
+        const cagrFallback = calcCAGR(totalIn, worstEndValue, years);
+        if (cagrFallback !== null) {
+          worstCasePaText = `entspricht ca. ${(cagrFallback * 100).toFixed(2)}% p.a.`;
+        }
+      }
+    }
+  }
+
+
+Worst-Case-Kachel erweitern (unter dem Betrag result.worstCase die p.a.-Zeile einfügen):
+
+Finde den Block:
+
+<div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+  <h3 className="text-sm font-medium text-red-700 mb-1">Worst Case (5. Perzentil)</h3>
+  <p className="text-2xl font-bold text-red-800">{formatCurrency(result.worstCase)}</p>
+
+
+Ergänze direkt darunter:
+
+  {worstCasePaText && (
+    <p className="text-xs mt-1 text-red-700 opacity-80">{worstCasePaText}</p>
+  )}
+
+
+Inflations-Hinweis unter den drei Kacheln einfügen. Suche die Container-Div der KPI-Kacheln:
+
+<div className="grid sm:grid-cols-3 gap-4 mb-8">
+  ...
+</div>
+
+
+Füge direkt danach ein:
+
+{inputs.inflationAdjusted && (
+  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+    <p className="text-sm text-blue-800">
+      Hinweis: Die errechneten Werte sind um ca. 2.5% p.a. inflationsbereinigt.
+    </p>
+  </div>
+)}
+
+
+Hinweis zu Nominal/Real:
+Der p.a.-Wert ist nominal (entspricht deinem Beispiel „100.000 → 175.000 in 40 J. = 1,41 % p.a.“). Wenn du stattdessen bei aktivierter Inflationsoption real p.a. ausweisen willst, können wir optional den Endwert vor der p.a.-Berechnung erst um 
+(
+1
++
+0,025
+)
+𝑦
+𝑒
+𝑎
+𝑟
+𝑠
+(1+0,025)
+years
+ deflationieren.
+
+Akzeptanzkriterien
+
+Bei aktiver Inflationsoption erscheint der blaue Hinweis unter den drei Kacheln.
+
+Worst-Case-Kachel zeigt „entspricht ca. x % p.a.“:
+
+Ohne Monatsrate = CAGR,
+
+Mit Monatsrate = IRR (monatlich → p.a.), stabil; bei Nicht-Konvergenz Fallback auf CAGR (Summe Einzahlungen → Endwert).
+
+Beispielcheck (dynamisch, 100.000 €, 40 J., Worst-Case ~175.000 €): 1,41 % p.a..

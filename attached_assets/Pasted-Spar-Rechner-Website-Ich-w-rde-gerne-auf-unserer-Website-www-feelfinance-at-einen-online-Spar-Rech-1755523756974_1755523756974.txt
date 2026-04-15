@@ -1,0 +1,80 @@
+Spar-Rechner Website:
+Ich würde gerne auf unserer Website www.feelfinance.at einen online Spar-Rechner integrieren, mit dem man ausrechnen kann, wie viel Kapital man bei einer vorgegebenen Verzinsung erreichen kann. Ziel ist es, dass Kunden selbst eingeben können, wie viel sie monatlich sparen möchten und/oder wie viel Kapital sie einmalig einzahlen möchten. Dann soll der Rechner anzeigen, wie viel Kapital sie bis zum 65 Lebensjahr angespart hätten. Super wäre dann auch die Möglichkeit eines Entnahmeplans zu rechnen, also wie viel Kapital man sich monatlich bei 4% Entnahme entnehmen kann. Der Rechner sollte Ergebnisse mit 95% VaR (Value at Risk) anzeigen. Unsere Website wurde mit Wordpress gebaut und wir benutzen den Elementor.
+Beispiele:
+https://www.froots.io/pensionsrechner/ 
+https://www.froots.io/rendite-rechner/
+
+
+1) Fachliche Rahmenbedingungen
+•	Zielalter & Startpunkt
+o	Zielalter: frei wählbar aber vordefiniert sollte 65 sein.
+o	Startpunkt: frei wählbar aber 25 vordefiniert
+•	Einzahlungen
+o	Monatliche Sparrate: frei wählbar? Standardwert? Max/Min? Option „jährliche Erhöhung in %“? frei wählbar und kein Standardwert. Max/Min sollte es nicht geben. Option Jährliche Erhöhung kann man einbauen.
+o	Einmalbetrag: optional und Standardwert 10.000€, Startzeitpunkt sofort
+o	Zeitpunkt der Monatsrate: am Monatsanfang (vorschüssig) 
+•	Rendite Annahmen
+o	Nominale jährliche Durchschnittsrendite 7 % p. a. und Volatilität anhand der historischen Aktienvolatilität
+o	Rebalancing/Strategie: 2 Annahmen – ausgewogen und dynamisch
+o	Inflation: Ergebnisse nominal aber vielleicht eine Option „inflationsbereinigt“ einbauen. Annahme Inflation: 2,5%
+o	Kosten/Steuern: Pauschale Produktkosten (TER) in % p. a.? KESt-Behandlung (Österreich) berücksichtigen oder weglassen (Disclaimer)? Pauschale Produktkosten iHv. 0,99% p.a. und KeSt weglassen (Disclaimer)
+•	VaR (95 %) – Definition & Methode
+o	Sollen wir den 95 %-VaR auf das Endvermögen zum Zielalter ausweisen (5 Perzentil), zusätzlich die Median  und 95 %-Spanne? Ja bitte auf Endalter (Standard 65 Jahre) und beide Spannen
+o	Modell:
+	Parametrisch/Lognormal (schnell) oder Monte Carlo mit monatlichen Schritten (realistischer, rechenintensiver)? Monte Carlo
+o	Anzahl Simulationen (z. B. 10.000) bei Monte Carlo: 2000 Simulationen
+•	Entnahmeplan
+o	Variante A („4 %-Regel“ klassisch): 4 % des Startkapitals im ersten Jahr, monatlich (= 4 %/12), jährlich an Inflation anpassen
+o	Zusätzlich VaR Sicht: Wie hoch ist die monatliche Entnahme, damit das Kapital mit 95 % Wahrscheinlichkeit bis Alter X hält
+o	Entnahme Startalter (z. B. 65) und Entnahme Dauer (z. B. bis 90): diese beiden Werte als Standard nehmen. Gibt der User aber Endalter 67 an, so sollte das Entnahme-Startalter sich dorthin mitbewegen.
+•	Rundung & Darstellung
+o	Währung/Format: 10.000 EUR (keine Kommastellen)
+o	Maximalwerte/Validierung (z. B. Sparrate bis 10.000 €).
+•	Hinweise/Disclaimer
+o	Gewünschter Risikohinweis (z. B. „keine Garantie, modellhafte Simulation, vergangene Wertentwicklungen…“): Die Renditenberechnung im Rechner beruht auf Annahmen basierend auf historischen Werten. Die Wertentwicklung in der Vergangenheit ist keine Garantie für die zukünftige Wertentwicklung. Die tatsächliche Rendite kann erheblich von den Schätzungen abweichen. Zwischenzeitliche Wertschwankungen sind aufgrund der Anlage an Kapitalmärkten zu erwarten.
+Diese Übersicht basiert auf konservativen repräsentativen Indexdaten der letzten 50 Jahre, nach Abzug von 0,99% Produktkosten. Für "Gewinnorientiert" rechnen wir mit 7%, für "Ausgewogen" rechnen wir mit 5%, Es besteht eine geringe Wahrscheinlichkeit, dass die Performance außerhalb dieser Linien liegt. Die Wertentwicklung in der Vergangenheit ist keine Garantie für die zukünftige Wertentwicklung. Die tatsächliche Rendite kann erheblich von den Schätzungen abweichen.
+o	Link/CTA zu Beratungstermin oder All Weather Strategie: Jetzt Beratung buchen - https://beratung.feelfinance.at/meetings/anton-maresch 
+2) UX & Inhalt
+•	Eingabefelder (bitte bestätigen):
+o	Alter (oder Geburtsdatum), Zielalter (Default 65), Einmalbetrag, Monatsrate, Inflation (optional).
+o	Umschalter: „Ergebnisse real (inflationsbereinigt) / nominal“.
+o	Entnahme Startalter, Entnahme Dauer, Entnahme Modus (4 %-Regel klassisch / Maximal mögliche Entnahme bis Endalter).
+•	Ausgaben/Visualisierung:
+o	Endvermögen (Median), 95 %-VaR Vermögen und 95 %-Best Case und Worst -Case
+o	Zeitverlauf Chart (Median + 5 %/95 % Band) bis zum Zielalter.
+o	Linie mir „Eingezahlt“: Summe der Einzahlungen
+o	Für die Entnahmephase: Monatliche Entnahme + Chart (Kapitalverlauf Median + 5 % Band).
+o	Download (PDF der Ergebnisse) und Kontakt CTA („Beratung anfragen“).
+•	Design
+o	Farben/Schriften laut CI (i. d. R. Gilroy). Hauptfarbe: #ee8246, Sekundärfarbe: # f9ca00, Schriftfarbe: schwarz, Hintergrund weiß
+o	Texte (Titel, Erklärungen, Tooltips) – oder soll ich sie im feel FINANCE Ton vorschlagen? Ja im feel FINANCE Ton
+3) Technische Umsetzung (WordPress / Elementor)
+•	Einbindung: beides!
+o	ein leichtes JS Widget (ein Zeile <div id="calculator"></div> + Script in Elementor/Code Block), oder
+o	ein kleines WP Plugin mit Shortcode ([feelfinance-sparrechner])?
+•	Performance
+o	Monte Carlo in einem Web Worker (flüssig auf Mobile). Anzahl Simulationen konfigurierbar.
+•	Tracking
+o	GA4/Consent Mode Events (z. B. „Calculator Viewed“, „Result Generated“, „Lead Clicked“)?
+•	Datenschutz
+o	Läuft komplett client seitig (keine personenbezogenen Daten), oder soll ein Server Endpoint (z. B. für PDF Export) genutzt werden? Nein keine Daten
+•	Barrierefreiheit & Mobile
+o	Mindest Touch Ziele, Tastaturbedienbarkeit, ARIA Labels, Responsive unter Elementor.
+4) Rechenlogik (zum Abnicken)
+•	Ansparphase (deterministisch):
+Monatszins rm=(1+rp.a.)1/12−1r_m=(1+r_{p.a.})^{1/12}-1rm=(1+rp.a.)1/12−1.
+Endwert = Einmalbetrag·(1+rm)n(1+r_m)^{n}(1+rm)n + Monatsrate·(1+rm)n−1rm\frac{(1+r_m)^{n}-1}{r_m}rm(1+rm)n−1·(vorschüssig: ·(1+rm)(1+r_m)(1+rm)).
+Optional: Abzug Kosten/Inflation pro Periode.
+•	VaR (95 %):
+o	Option 2 (Monte Carlo): 2.000 Pfade, monatliche Renditen ~ N(μm,σm)N(\mu_m,\sigma_m)N(μm,σm), Beiträge je Periode, Ergebnis: Median/5 %/95 %. Realistischer, kostet etwas Rechenzeit.
+•	Entnahmephase:
+o	4 %-Regel: monatliche Entnahme = 0,04/12×0{,}04/12 \times0,04/12× Startkapital (jährlich inflationsanpassen – optional).
+o	VaR Sicht: per Simulation max. monatliche Entnahme, sodass Kapital über Dauer T mit 95 % nicht aufgebraucht wird.
+Optional: Meine Vorschläge (wenn du magst)
+•	Profile: „ Ausgewogen / Dynamisch“ mit vorbefüllten μ/σ\mu/\sigmaμ/σ + verständlicher Erklärung. Passt
+•	Zwei Ergebnisse: Nominal und real (inflationsbereinigt) nebeneinander. Passt
+•	PDF Export inkl. Disclaimer & CTA. passt
+•	Lead Magnet: Option „Ergebnis per E Mail senden“ (nur mit Einwilligung). passt
+
+
+

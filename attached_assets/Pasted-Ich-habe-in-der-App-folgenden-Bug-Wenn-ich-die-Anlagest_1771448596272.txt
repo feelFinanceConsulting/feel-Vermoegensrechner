@@ -1,0 +1,109 @@
+Ich habe in der App folgenden Bug:
+
+Wenn ich die Anlagestrategie (ausgewogen/dynamisch) ändere und dann im Popup auf „Neu berechnen“ klicke, ist anschließend der erste Chart leer („Keine Daten – bitte Eingaben prüfen und neu berechnen“) und außerdem wird manchmal das Feld „Entnahme-Startalter“ plötzlich geleert. Vermutlich geraten Alterswerte kurz auf undefined/NaN, wodurch keine Chartdaten mehr erzeugt werden.
+
+Bitte behebe das robust.
+
+1) Fix: Inputs-State darf nicht überschrieben werden (sonst gehen Felder verloren)
+
+Öffne client/src/pages/calculator.tsx und ändere handleInputsChange so, dass es den bestehenden inputs-State merged statt vollständig ersetzt.
+
+Vorher (Problem):
+setInputs(newInputs);
+
+Nachher (Fix):
+
+Mergen: setInputs(prev => ({ ...prev, ...newInputs, ... }))
+
+Zusätzlich: alle Age-Felder sanitizen, damit niemals NaN im State landet.
+
+Füge oben im File (nahe imports) eine Helper-Funktion ein:
+
+const toValidInt = (value: unknown, fallback: number) => {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.round(n);
+};
+
+
+Und ersetze handleInputsChange durch diese Version:
+
+function handleInputsChange(newInputs: CalculatorInputs) {
+  setInputs(prev => {
+    const nextCurrentAge = toValidInt(newInputs.currentAge, prev.currentAge);
+    const nextTargetAge  = toValidInt(newInputs.targetAge,  prev.targetAge);
+
+    // Withdrawal Start/End robust halten:
+    // - Wenn newInputs nichts mitschickt, prev behalten
+    // - Wenn targetAge geändert wurde: withdrawalStartAge automatisch mitziehen
+    const prevWithdrawalStart = Number.isFinite(prev.withdrawalStartAge as any)
+      ? (prev.withdrawalStartAge as number)
+      : prev.targetAge;
+
+    const nextWithdrawalStartRaw =
+      (newInputs as any).withdrawalStartAge ?? prevWithdrawalStart;
+
+    const nextWithdrawalStart = toValidInt(
+      nextWithdrawalStartRaw,
+      nextTargetAge
+    );
+
+    const prevWithdrawalEnd = Number.isFinite(prev.withdrawalEndAge as any)
+      ? (prev.withdrawalEndAge as number)
+      : 90;
+
+    const nextWithdrawalEndRaw =
+      (newInputs as any).withdrawalEndAge ?? prevWithdrawalEnd;
+
+    const nextWithdrawalEnd = toValidInt(nextWithdrawalEndRaw, prevWithdrawalEnd);
+
+    const targetAgeChanged = nextTargetAge !== prev.targetAge;
+
+    return {
+      ...prev,
+      ...newInputs,
+
+      // sanitized ages
+      currentAge: nextCurrentAge,
+      targetAge: nextTargetAge,
+
+      // withdrawal ages
+      withdrawalStartAge: targetAgeChanged ? nextTargetAge : nextWithdrawalStart,
+      withdrawalEndAge: nextWithdrawalEnd,
+    };
+  });
+
+  // UI-State wie gehabt
+  setCalculationResult(null);
+  setWithdrawalResult(null);
+  setIsDirty(true);
+}
+
+2) Zusätzlicher Guard: Beim Rechnen niemals mit NaN arbeiten
+
+In handleCalculate() in calculator.tsx bitte vor der Simulation sicherstellen, dass targetAge > currentAge und beide Zahlen sind.
+Wenn invalid: setCalculationResult(null) und zeige eine sinnvolle Fehlermeldung/Toast (oder zumindest console.warn) und return.
+
+Beispiel-Guard (am Anfang von handleCalculate):
+
+const cAge = Number(inputs.currentAge);
+const tAge = Number(inputs.targetAge);
+
+if (!Number.isFinite(cAge) || !Number.isFinite(tAge) || tAge <= cAge) {
+  console.warn("Invalid ages:", { cAge, tAge });
+  setCalculationResult(null);
+  setWithdrawalResult(null);
+  setIsCalculating(false);
+  return;
+}
+
+3) Optional: WithdrawalPlanning darf nicht leeren State rendern
+
+Öffne client/src/components/withdrawal-planning.tsx und stelle sicher, dass startAge nie leer bleibt, wenn inputs.targetAge vorhanden ist.
+Direkt nach der Definition von effectiveStartAge:
+
+useEffect(() => {
+  if (!Number.isFinite(startAge as any)) {
+    setStartAge(inputs.targetAge);
+  }
+}, [inputs.targetAge]);

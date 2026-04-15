@@ -1,0 +1,71 @@
+3) Wealth-Chart mit dieser Funktion rendern
+
+In generatePDFReport(...) ersetze:
+
+const [wealthCanvas, withdrawalCanvas] = await Promise.all([
+  wealthChartRef ? renderChartToCanvas(wealthChartRef, true) : Promise.resolve(null),
+  withdrawalChartRef ? renderChartToCanvas(withdrawalChartRef, false) : Promise.resolve(null),
+]);
+
+durch:
+
+const [wealthCanvas, withdrawalCanvas] = await Promise.all([
+  wealthChartRef ? renderChartWithoutInternalLegend(wealthChartRef) : Promise.resolve(null),
+  withdrawalChartRef ? renderChartToCanvas(withdrawalChartRef, false) : Promise.resolve(null),
+]);
+================================
+4) Nur den Chart selbst erfassen, nicht den gesamten Container mit Zusatz-UI
+
+Prüfe außerdem, ob wealthChartRef aktuell evtl. auf einen übergeordneten Container zeigt, der zusätzlich die Legende oder andere Elemente enthält.
+
+Wenn ja:
+
+ändere die Ref-Zuweisung außerhalb der PDF-Datei so, dass wealthChartRef auf den tatsächlichen Chart-Bereich zeigt
+nicht auf den gesamten Chart-Block mit Legende/Text
+
+Falls das nicht sofort geht:
+
+in renderChartWithoutInternalLegend(...) nur das relevante innere Element verwenden, z. B.:
+.recharts-wrapper
+oder .recharts-responsive-container
+wenn vorhanden
+
+Beispiel:
+
+const chartRoot =
+  element.querySelector<HTMLElement>('.recharts-wrapper') ||
+  element.querySelector<HTMLElement>('.recharts-responsive-container') ||
+  element;
+
+und dann html2canvas(chartRoot, ...) statt html2canvas(element, ...).
+
+================================
+5) Legende als Text darunter beibehalten
+
+Die bestehende Text-Legende unter dem Chart soll bleiben:
+
+y2 = addChartLegend(doc, y2, [
+  { color: [238, 130, 70], label: 'Erwartetes Szenario' },
+  { color: [16, 185, 129], label: 'Optimistisches Szenario (95. Pz.)' },
+  { color: [239, 68, 68], label: 'Worst Case (5. Pz.)' },
+  { color: [107, 114, 128], label: 'Eingezahlt' },
+]);
+
+Es soll also am Ende nur so aussehen:
+
+Chart als Bild
+darunter Text-Legende
+keine integrierte Legende im Chart selbst
+================================
+6) Acceptance Criteria
+Auf Seite 2 ist beim Abschnitt „Vermögensentwicklung“ der Chart als Grafik sichtbar
+Im Chartbild selbst ist keine interne Legende mehr vorhanden
+Unter dem Chart bleibt die Text-Legende sichtbar
+Keine doppelte Legende mehr
+Entnahmeplanungs-Chart bleibt unverändert
+
+Bitte ändere nur den PDF-Export-Code und gib mir danach kurz an:
+
+welche neue Helper-Funktion du eingebaut hast
+ob du wealthChartRef oder nur die Capture-Logik angepasst hast
+wie du sichergestellt hast, dass nur der Chart und nicht die interne Legende gescreenshottet wird

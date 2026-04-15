@@ -1,0 +1,132 @@
+Ändere die Worst-Case-Rendite-Berechnung in client/src/components/calculation-results.tsx, sodass immer eine nominale p.a.-Rendite angezeigt wird (unabhängig vom Inflations-Schalter) und die Berechnung stabil ist. Ersetze die bestehende Worst-Case-IRR/CAGR-Logik durch den folgenden Code und füge die Hilfsfunktionen ein.
+
+1) Datei öffnen
+
+client/src/components/calculation-results.tsx
+
+2) Oberhalb der React-Komponente folgende Hilfsfunktionen einfügen (unter den bestehenden Imports/Helfern ist ok):
+// --- Nominale Cashflows für Worst-Case (Einzahlungen negativ, Endwert positiv) ---
+function buildNominalCashflowsForWorstCase(
+  inputs: CalculatorInputs,
+  endValue: number
+): number[] {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  const cfs: number[] = [];
+
+  // t=0: Einmalbetrag nominal -> negativ
+  cfs.push(- (inputs.oneTimeAmount || 0));
+
+  // t=1..months: monatliche Einzahlungen nominal -> negativ
+  for (let m = 1; m <= months; m++) {
+    const yIdx = Math.floor((m - 1) / 12);
+    const monthly = (inputs.monthlyAmount || 0) * Math.pow(1 + (inputs.annualIncrease || 0) / 100, yIdx);
+    cfs.push(-monthly);
+  }
+
+  // Letzte Periode: Endwert nominal -> positiv addieren
+  cfs[cfs.length - 1] += Math.max(0, endValue);
+  return cfs;
+}
+
+// --- Robuste IRR (monatlich) via Bisektion mit adaptivem Bracketing, annualisiert ---
+function irrMonthlyBisection(cashflows: number[], maxIter = 120, tol = 1e-9): number | null {
+  // NPV(r) = sum_t CF_t / (1+r)^t
+  const npv = (r: number) => {
+    let v = 0;
+    for (let t = 0; t < cashflows.length; t++) {
+      v += cashflows[t] / Math.pow(1 + r, t);
+    }
+    return v;
+  };
+
+  // Startintervall (mtl. Rendite): [-95%, +50%]
+  let lo = -0.95, hi = 0.50;
+  let fLo = npv(lo), fHi = npv(hi);
+
+  // Adaptives Bracketing bis max. 10 Versuche
+  let expandSteps = 0;
+  while (fLo * fHi > 0 && expandSteps < 10) {
+    if (Math.abs(fHi) < Math.abs(fLo) && hi < 1.0) {
+      hi = Math.min(1.0, hi + 0.25);
+      fHi = npv(hi);
+    } else {
+      lo = Math.max(-0.99, lo - 0.02);
+      fLo = npv(lo);
+    }
+    expandSteps++;
+  }
+
+  // Kein Vorzeichenwechsel => keine eindeutige IRR
+  if (fLo * fHi > 0) return null;
+
+  for (let i = 0; i < maxIter; i++) {
+    const mid = 0.5 * (lo + hi);
+    const fMid = npv(mid);
+
+    if (!isFinite(fMid)) { hi = mid; continue; }
+    if (Math.abs(fMid) < tol) return mid;
+
+    if (fLo * fMid <= 0) { hi = mid; fHi = fMid; }
+    else { lo = mid; fLo = fMid; }
+  }
+
+  // Best Effort, falls nicht konvergiert
+  return 0.5 * (lo + hi);
+}
+
+// --- Einfache CAGR als Fallback (nominal) ---
+function cagrFallbackNominal(endValue: number, totalPaidNominal: number, years: number): number | null {
+  if (years <= 0 || endValue <= 0 || totalPaidNominal <= 0) return null;
+  const cagr = Math.pow(endValue / totalPaidNominal, 1 / years) - 1;
+  return isFinite(cagr) ? cagr : null;
+}
+
+3) In der Komponente den gesamten bisherigen Block, der die p.a.-Rendite für die Worst-Case-Kachel berechnet (inkl. IRR-Versuche mit real/nominal und alle if (inputs.inflationAdjusted)-Sonderpfade), vollständig entfernen und durch den folgenden einheitlich nominalen Block ersetzen:
+// === Worst-Case p.a. Rendite (IMMER NOMINAL) ===
+const yearsTotal = inputs.targetAge - inputs.currentAge;
+const worstEndValueNominal = chartData[chartData.length - 1]?.worstCase ?? result.worstCase;
+
+let irrPaToDisplay: number | null = null;
+
+if (yearsTotal > 0 && worstEndValueNominal > 0) {
+  // Baue nominale Cashflows
+  const cfsNom = buildNominalCashflowsForWorstCase(inputs, worstEndValueNominal);
+
+  // Versuche robuste monatliche IRR via Bisektion
+  const irrMonthly = irrMonthlyBisection(cfsNom);
+
+  if (irrMonthly !== null && isFinite(irrMonthly) && irrMonthly > -0.99 && irrMonthly < 1.0) {
+    irrPaToDisplay = Math.pow(1 + irrMonthly, 12) - 1; // Annualisieren
+  } else {
+    // Fallback: nominale CAGR auf Summe nominaler Einzahlungen
+    const totalNominalPaid = cfsNom.reduce((sum, cf) => cf < 0 ? sum - cf : sum, 0);
+    irrPaToDisplay = cagrFallbackNominal(worstEndValueNominal, totalNominalPaid, yearsTotal);
+  }
+}
+
+const formatPct = (x: number | null) => x === null ? '–' : `${(x * 100).toFixed(2)}% p.a.`;
+
+
+Hinweis: Dieser Block ist unabhängig von inputs.inflationAdjusted. Damit bekommst du konsistent die nominale Worst-Case-Rendite in der Kachel – exakt der gewünschte Effekt (z. B. ~1,2 % p.a. in deinen Beispielen) und keine negativen/absurden Werte mehr.
+
+4) Stelle sicher, dass in der JSX-Kachel weiterhin die Variable verwendet wird:
+<p className="text-xs text-red-700 mt-1">
+  entspricht ca. {formatPct(irrPaToDisplay)}
+</p>
+
+5) Entferne veraltete/konkurrierende Helfer:
+
+Lösche alle älteren IRR-/CAGR-Hilfsfunktionen, die real vs. nominal gemischt haben.
+
+Entferne die Varianten, die (inflationAdjusted) in die Rendite-Ermittlung hineinmischen.
+
+Lasse die inflationsbereinigten Anzeigen nur die Linien/Kacheln betreffen – nicht die Worst-Case-Rendite-Berechnung.
+
+Erwartetes Verhalten danach
+
+Die Worst-Case-Kachel zeigt immer eine nominale p.a.-Rendite (IRR).
+
+Falls keine IRR gefunden wird (selten), wird sauber auf nominale CAGR über die Summe nominaler Einzahlungen fall-backed.
+
+Keine Ausreißer mehr wie „409500% p.a.“ oder „-3.50% p.a.“ durch Mischen real/nominal.

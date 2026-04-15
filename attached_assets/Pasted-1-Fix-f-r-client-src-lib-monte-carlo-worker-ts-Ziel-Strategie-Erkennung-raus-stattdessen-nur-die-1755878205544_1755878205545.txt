@@ -1,0 +1,134 @@
+1) Fix für client/src/lib/monte-carlo.worker.ts
+
+Ziel: Strategie‑Erkennung raus, stattdessen nur die bereits vorbereiteten Parameter verwenden. Kein doppelter TER‑Abzug.
+
+Ersetze in performMonteCarloSimulation(...) den Block mit „Strategy parameters …“ bis inkl. mu_log_m/sigma_m durch:
+
+  // Nutze ausschließlich die Parameter aus getSimulationParams:
+  // - params.monthlyReturn: NETTO Monats-Effektivzins (TER bereits abgezogen)
+  // - params.volatility   : monatliche σ (bereits /√12 skaliert)
+
+  // Jahresgrößen aus Monatsparametern ableiten
+  const sigma_annual = params.volatility * Math.sqrt(12);
+  const mu_net_annual = Math.pow(1 + params.monthlyReturn, 12) - 1;
+
+  // Lognormale Monats-Parameter (Drift-Korrektur)
+  const stepsPerYear = 12;
+  const mu_log_m = (mu_net_annual - 0.5 * sigma_annual * sigma_annual) / stepsPerYear;
+  const sigma_m  = sigma_annual / Math.sqrt(stepsPerYear);
+
+
+Und lösche komplett den vorherigen Block:
+
+// const TER = 0.0099; ...
+// if (volatility <= 0.09) { ... } else { ... }
+// const mu_net = grossAnnualReturn - TER;
+// const sigma  = annualVolatility;
+// const mu_log_m = (mu_net - 0.5 * sigma * sigma) / stepsPerYear;
+// const sigma_m  = sigma / Math.sqrt(stepsPerYear);
+
+
+So ist die MC‑Engine immer konsistent mit der UI‑Strategie, weil getSimulationParams(strategy) bereits die richtigen (netto) Monats‑Parameter liefert.
+
+Zusatz (sauberere Quantile am Ende):
+Ersetze die drei finalValues[Math.floor(...)] durch eine kleine Quantil‑Funktion (gleich wie in deiner Finanz‑Lib), z. B.:
+
+function q(arr: number[], p: number) {
+  const a = [...arr].sort((x,y)=>x-y);
+  const idx = (a.length - 1) * p;
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return hi === lo ? a[lo] : a[lo] + (idx - lo) * (a[hi] - a[lo]);
+}
+
+...
+
+return {
+  median:      Math.round(q(finalValues, 0.50)),
+  worstCase:   Math.round(q(finalValues, 0.05)),
+  bestCase:    Math.round(q(finalValues, 0.95)),
+  ...
+}
+
+2) Fix für client/src/components/calculation-results.tsx
+
+Ziel: Worst‑Case korrekt aus deiner (monatlichen) Timeline je Jahres‑Schritt abgreifen; 10 %-Fallback entfernen.
+
+Ersetze in calculateScenarios die Schleife und den Worst‑Case‑Zugriff:
+
+const scenarios = [];
+
+for (let yearIndex = 0; yearIndex <= years; yearIndex++) {
+  const month = yearIndex * 12;
+  const age = inputs.currentAge + yearIndex;
+
+  // Eingezahlt (unverzinst)
+  let totalPaid = inputs.oneTimeAmount;
+  for (let m = 1; m <= month; m++) {
+    const yIdx = Math.floor((m - 1) / 12);
+    const monthlyAmount = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yIdx);
+    totalPaid += monthlyAmount;
+  }
+
+  // Ziele (wie gehabt)
+  let goalWithdrawals = 0;
+  for (let y = 0; y < yearIndex; y++) {
+    const currentYear = new Date().getFullYear() + y;
+    goalWithdrawals += inputs.goals
+      .filter(goal => goal.year === currentYear)
+      .reduce((sum, goal) => sum + goal.amount, 0);
+  }
+
+  const calculateArithmeticScenario = (monthlyRate: number) => {
+    let capital = inputs.oneTimeAmount;
+    for (let m = 1; m <= month; m++) {
+      const yIdx = Math.floor((m - 1) / 12);
+      const monthlyAmount = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yIdx);
+      capital += monthlyAmount;          // vorschüssig
+      capital *= (1 + monthlyRate);      // Monatsrendite
+      if (m % 12 === 0) {
+        const currentYear = new Date().getFullYear() + yIdx;
+        const gw = inputs.goals
+          .filter(goal => goal.year === currentYear)
+          .reduce((sum, goal) => sum + goal.amount, 0);
+        capital = Math.max(0, capital - gw);
+      }
+    }
+    return capital;
+  };
+
+  // *** HIER: Worst-Case korrekt aus monatlicher Timeline ***
+  // Nimm den LETZTEN Monat des Jahres (index = yearIndex*12 - 1), clamp auf >=0
+  let worstCaseValue = 0;
+  if (yearIndex > 0) {
+    const idx = Math.min(timelineWithGoals.length - 1, yearIndex * 12 - 1);
+    worstCaseValue = Math.max(0, timelineWithGoals[idx]?.worstCase ?? 0);
+  }
+
+  scenarios.push({
+    age,
+    optimistic: Math.round(calculateArithmeticScenario(optimisticMonthly)),
+    expected:   Math.round(calculateArithmeticScenario(expectedMonthly)),
+    worstCase:  Math.round(worstCaseValue),
+    totalPaid:  Math.round(totalPaid - goalWithdrawals),
+  });
+}
+
+
+Wichtig: Entferne den bisherigen Fallback
+Math.max(timelineWithGoals[month]?.worstCase || 0, inputs.oneTimeAmount * 0.1) – der verfälscht die Werte.
+
+3) Stelle sicher, dass du die Strategie durchreichst
+
+Wo immer du calculateWithdrawal(...) aufrufst, übergib inputs.strategy:
+
+calculateWithdrawal(
+  endCapital,
+  withdrawalMode,
+  inputs.targetAge,
+  inputs.withdrawalEndAge ?? 90,
+  inputs.inflationAdjusted,
+  inputs.strategy as 'ausgewogen' | 'dynamisch'
+);
+
+
+Damit rechnen PMT & MC‑Timeline konsistent in der gleichen Strategie.

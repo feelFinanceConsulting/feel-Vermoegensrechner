@@ -1,0 +1,71 @@
+Bitte verbessere den PDF-Export des Sparrechners auf https://sparrechner.feelfinance.at/ so, dass der Export vollständig und professionell funktioniert.
+
+Ziel:
+Der PDF-Export soll ALLE relevanten Inhalte des Rechners enthalten:
+1. alle aktuell eingegebenen Inputs
+2. alle Ergebnis-Kacheln
+3. alle sichtbaren Grafiken/Charts
+4. alle Hinweise / Disclaimer / Infoboxen am Ende
+5. saubere Seitenumbrüche
+6. keine abgeschnittenen Inhalte
+7. gleiche Reihenfolge wie auf der Website
+8. optisch nahe am aktuellen Design der Website
+
+Bitte so umsetzen:
+
+1) Exportiere nicht nur den sichtbaren Viewport, sondern den vollständigen Inhalt des Rechners.
+- Der gesamte Rechner-Container soll exportiert werden, auch wenn Inhalte gescrollt werden müssen.
+- Nichts darf unten abgeschnitten werden.
+
+2) Stelle sicher, dass Charts vollständig gerendert sind, bevor der PDF-Export startet.
+- Warte auf das vollständige Rendering der Diagramme.
+- Falls html2canvas verwendet wird, muss erst nach dem Rendern der Recharts-Komponenten exportiert werden.
+- Fonts, Icons und Bilder müssen geladen sein, bevor exportiert wird.
+
+3) Inputs und Hinweise müssen explizit im PDF enthalten sein.
+- Die PDF soll die Eingabewerte in lesbarer Form zeigen.
+- Falls Input-Felder schlecht in html2canvas erscheinen, soll für den Export ein eigener statischer Export-Block erzeugt werden, der die Werte als Text darstellt.
+- Die Hinweise/Disclaimer unter dem Rechner müssen vollständig mit exportiert werden.
+
+4) Multi-Page-PDF korrekt umsetzen.
+- Wenn der Inhalt länger als eine Seite ist, soll automatisch ein mehrseitiges PDF erzeugt werden.
+- Seitenumbrüche sollen logisch gesetzt werden:
+  - Seite 1: Überschrift + Inputs + Ergebnis-Kacheln
+  - Seite 2: Vermögensentwicklung + Chart
+  - Seite 3: Entnahmeplanung + Chart + Hinweise
+- Keine abgeschnittenen Diagramme oder halben Boxen zwischen Seiten.
+
+5) Optik verbessern.
+- Weißer Hintergrund
+- ausreichende Ränder
+- saubere Abstände
+- lesbare Schriftgrößen
+- Charts scharf darstellen
+- keine grauen Overlays, Popups oder Hover-Zustände im Export
+- Buttons wie „Neu berechnen“ oder interaktive UI-Elemente sollen nicht im PDF auftauchen
+
+6) Falls aktuell html2canvas + jsPDF verwendet wird:
+- prüfe, ob der Export besser über einen dedizierten Print-/Export-Container läuft
+- wenn nötig, erstelle eine separate React-Komponente nur für den PDF-Export
+- diese Export-Komponente soll exakt die Inhalte enthalten, die im PDF erscheinen sollen
+
+7) Bitte füge eine robuste Export-Funktion hinzu:
+- Export startet erst, wenn isCalculating = false
+- Export startet erst, wenn alle Charts vorhanden sind
+- Fehler sauber abfangen
+- bei Fehlern eine verständliche Meldung anzeigen
+
+8) Acceptance Criteria:
+- PDF enthält alle Inputs
+- PDF enthält beide Charts vollständig
+- PDF enthält alle Hinweise am Ende
+- kein abgeschnittener Inhalt
+- mehrere Seiten funktionieren sauber
+- Export sieht auf Desktop professionell aus
+- die Reihenfolge entspricht der Website
+- Export funktioniert reproduzierbar
+
+Bitte nenne mir am Ende:
+- welche Dateien du geändert hast
+- welche technische Lösung du gewählt hast
+- ob du html2canvas/jsPDF beibehalten oder refactored hast

@@ -1,0 +1,85 @@
+Bitte passe den PDF-Export in `client/src/lib/pdf-export.ts` so an, dass auf **Seite 2 beide Grafiken dargestellt werden**:
+
+1. **Graph 1: Vermögensentwicklung**
+2. **Graph 2: Entnahmeplanung – Kapitalverlauf**
+
+## Ziel
+- Beide Grafiken sollen gemeinsam auf **Seite 2** erscheinen.
+- Beide Grafiken müssen deshalb **etwas kleiner** dargestellt werden.
+- Beim **Graph 1 Vermögensentwicklung** soll in der Grafik **wirklich nur der Chart selbst** zu sehen sein.
+- Die **Legende darf nicht in der Grafik selbst** enthalten sein.
+- Stattdessen soll die Legende **nur als Text darunter** erscheinen, so wie sie aktuell schon mit `addChartLegend(...)` unter dem Chart hinzugefügt wird.
+- Das gleiche Layout-Prinzip soll für beide Charts gelten: **Chart oben, Legende darunter**.
+- Es soll keine doppelte Legende mehr geben.
+
+## Konkrete Umsetzung
+
+### 1) Beide Charts auf dieselbe PDF-Seite packen
+- Entferne die aktuelle Aufteilung:
+  - Seite 2 = Vermögensentwicklung
+  - Seite 3 = Entnahmeplanung
+- Stattdessen:
+  - Seite 1 = Inputs, Kacheln, Zusammenfassung, Entnahmeplanung-Überblick
+  - Seite 2 = beide Charts untereinander
+  - Seite 3 = Hinweise / Disclaimer
+- Falls der Platz für Seite 2 nicht reicht, verwende feste kleinere Chart-Höhen, damit beide sauber auf eine Seite passen.
+
+### 2) Vermögensentwicklung ohne eingebaute Legende rendern
+- Für `wealthChartRef` soll beim `html2canvas`-Export die interne Legende im DOM **temporär ausgeblendet** werden.
+- Verwende dafür die bestehende oder eine neue Helper-Funktion, z. B. `renderChartWithoutLegend(...)`.
+- Blende alle passenden Recharts-Legenden im Chart-Container aus:
+  - `.recharts-default-legend`
+  - `.recharts-legend-wrapper`
+  - ggf. weitere Legendenelemente
+- Nach dem Rendern wieder einblenden.
+
+### 3) Beide Charts kleiner skalieren
+- Passe die Höhe der Charts so an, dass beide auf Seite 2 passen.
+- Beispiel:
+  - Vermögensentwicklung: maxChartH ca. 65–75 mm
+  - Entnahmeplanung: maxChartH ca. 65–75 mm
+- Zwischen den Charts ausreichend Abstand lassen.
+- Unter jedem Chart weiterhin `addChartLegend(...)` verwenden.
+
+### 4) Neue Seitenstruktur
+Bitte die PDF-Struktur so umbauen:
+
+- **Seite 1**
+  - Header
+  - Inputs
+  - Finanzielle Ziele / Zuflüsse
+  - Ergebnis-Kacheln
+  - Zusammenfassung
+  - Entnahmeplanung – Überblick
+  - Footer
+
+- **Seite 2**
+  - Header
+  - Titel: „Vermögensentwicklung“
+  - Chart 1 (ohne interne Legende)
+  - Text-Legende darunter
+  - Abstand
+  - Titel: „Entnahmeplanung – Kapitalverlauf“
+  - Chart 2
+  - Text-Legende darunter
+  - Footer
+
+- **Seite 3**
+  - Header
+  - Titel: „Wichtige Hinweise“
+  - Disclaimer
+  - Footer
+
+### 5) Acceptance Criteria
+- Beide Charts erscheinen auf Seite 2.
+- Graph 1 enthält in der Grafik selbst **keine Legende**.
+- Unter Graph 1 steht die Legende als Text.
+- Unter Graph 2 steht ebenfalls die Legende als Text.
+- Beide Charts sind kleiner und sauber proportioniert.
+- Keine abgeschnittenen Inhalte.
+- Seite 3 enthält nur Hinweise / Disclaimer.
+
+Bitte ändere nur die PDF-Export-Logik in `client/src/lib/pdf-export.ts` und gib mir danach kurz an:
+- wie du die Seitenstruktur geändert hast
+- wie du die interne Legende beim Vermögenschart ausgeblendet hast
+- welche Maximalhöhen du für beide Charts gewählt hast

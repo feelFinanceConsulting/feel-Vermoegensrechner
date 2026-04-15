@@ -1,0 +1,43 @@
+Fix bitte den Bug, dass nach Klick auf das Popup „Neu berechnen“ (Overlay über dem Chart) der Chart grau bleibt bzw. leer wird.
+
+Ursache: Der „Neu berechnen“-Button in client/src/components/calculation-results.tsx ruft onRecalculate auf, aber der Button ist nicht gegen laufende Berechnungen geschützt. In client/src/pages/calculator.tsx macht handleCalculate() bei isCalculating ein early return – dadurch wird savingsDirty nicht zurückgesetzt und der Chart bleibt dauerhaft im „dirty“-Zustand (Overlay + opacity).
+
+Änderungen:
+
+1) client/src/pages/calculator.tsx
+- In handleCalculate() sicherstellen, dass savingsDirty IMMER sauber zurückgesetzt wird und nicht “hängen” kann:
+  - Entferne das early-return-Verhalten, oder sorge dafür, dass bei early return savingsDirty nicht dauerhaft true bleibt.
+  - Best practice: Wenn handleCalculate startet, setze sofort:
+      setSavingsDirty(false)
+    und setze setIsCalculating(true) danach.
+  - Zusätzlich: Baue eine Guard ein, dass mehrfaches Klicken nichts kaputt macht:
+      if (isCalculating) return;
+    aber NUR wenn vorher der Button disabled ist (siehe Punkt 2).
+  - Optional: setError(null) beim Start.
+
+Beispiel-Struktur:
+  const handleCalculate = async () => {
+    if (isCalculating) return;
+    setIsCalculating(true);
+    setSavingsDirty(false);
+    setError(null);
+    try { ... } catch(e){ ... } finally { setIsCalculating(false); }
+  }
+
+2) client/src/components/calculation-results.tsx
+- Übergib isCalculating als Prop (falls noch nicht vorhanden) und disable den „Neu berechnen“-Button wenn isCalculating true.
+- Zeige statt dessen im Buttontext „Berechne…“ und/oder einen Spinner.
+- Damit kann der User nicht mehrfach klicken und handleCalculate nicht in einen Zustand bringen, wo isDirty nicht resetet wird.
+
+Konkreter UI-Teil:
+  <Button onClick={onRecalculate} disabled={isCalculating} ...>
+    {isCalculating ? 'Berechne…' : 'Neu berechnen'}
+  </Button>
+
+3) Safety: Falls chartData leer ist (z.B. durch temporäre invalid inputs), soll trotzdem NICHT einfach ein leerer grauer Bereich bleiben:
+- Wenn chartData.length === 0, rendere eine kleine Info im Chartcontainer: „Keine Daten – bitte Eingaben prüfen und neu berechnen.“
+- Das verhindert „leerer Chart“ ohne Feedback.
+
+Bitte danach testen:
+- Wert ändern → Overlay erscheint → „Neu berechnen“ klicken → Overlay verschwindet nach erfolgreicher Berechnung → Chart wird normal angezeigt.
+- Während Berechnung mehrfach klicken → Button ist disabled, Chart bleibt stabil.

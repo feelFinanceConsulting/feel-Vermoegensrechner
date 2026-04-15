@@ -1,0 +1,60 @@
+Anpassungen:
+Ziel: Im bestehenden Spar /Entnahmerechner die UI Labels der Strategieauswahl anpassen und die Vermögensdarstellung auf 4 Linien umstellen.
+Wichtig: Produktkosten (TER) 0,99 % p.a. müssen in allen Rendite Berechnungen berücksichtigt werden. Die Entnahmeplanung bleibt unverändert.
+1) UI – Strategieauswahl
+•	Ersetze die Unterzeilen (Sub Labels) der Strategien:
+o	Ausgewogen → Unterzeile: ca. 5% p.a.
+o	Dynamisch → Unterzeile: ca. 7% p.a.
+2) Chart – Vermögensentwicklung mit 4 Linien
+Zeige im Anspar Chart exakt diese vier Kurven (Legende in dieser Reihenfolge):
+1.	Optimistisches Szenario – arithmetische Berechnung mit 9 % p.a. brutto, TER 0,99 % abziehen → 8,01 % p.a. netto
+2.	Erwartetes Szenario – arithmetische Berechnung mit 7 % p.a. brutto, TER 0,99 % abziehen → 6,01 % p.a. netto
+3.	Worst Case (5. Perzentil) – Monte Carlo mit 7 % p.a. brutto, TER 0,99 % abziehen → 6,01 % p.a. Netto Drift, 5. Perzentil über Pfade
+4.	Eingezahlt – kumulierte Einzahlungen (Einmalbetrag + vorschüssige Monatsraten inkl. jährlicher Erhöhung, falls gesetzt), gestrichelt, ohne Verzinsung
+2.1 Arithmetische Szenarien (Linie 1 & 2)
+•	Verwende Netto Renditen nach TER:
+o	Optimistisch: r_pa_net = 0.0900 − 0.0099 = 0.0801 (8,01 % p.a.)
+o	Erwartet: r_pa_net = 0.0700 − 0.0099 = 0.0601 (6,01 % p.a.)
+•	Monatlicher Effektivzins:
+rm=(1+r_pa_net)1/12−1r_m = (1 + r\_{pa\_net})^{1/12} - 1rm=(1+r_pa_net)1/12−1 
+•	Ansparlogik pro Monat ttt (vorschüssige Zahlung):
+o	Einmalbetrag LLL: L⋅(1+rm)tL \cdot (1+r_m)^tL⋅(1+rm)t
+o	Monatsrate MtM_tMt mit optionaler jährlicher Erhöhung ggg:
+Mt=M0⋅(1+g)⌊t/12⌋M_t = M_0 \cdot (1+g)^{\lfloor t/12 \rfloor}Mt=M0⋅(1+g)⌊t/12⌋; vorschüssig verzinsen mit Faktor (1+rm)(1+r_m)(1+rm) in der jeweiligen Periode.
+o	Summiere beide Komponenten zum Vermögensstand.
+Wenn die App bereits Inflation getrennt handhabt: keine zusätzliche Inflationslogik hier ändern; nur TER ist neu zu berücksichtigen.
+2.2 Monte Carlo (Linie 3)
+•	Ziel: Für jeden Monat ttt das 5. Perzentil der Vermögenspfade plotten (Zeitreihe des 5 %-Quantils, nicht nur Endwert).
+•	Brutto Annahme: 7 % p.a., TER 0,99 % p.a. abziehen → Netto Drift 6,01 % p.a.
+•	Jahresvolatilität: bestehende App Einstellung verwenden (z. B. profilabhängig). Falls nicht vorhanden: Default σ = 14 % p.a.
+•	Monatliche Log Parameter (lognormales Modell empfohlen):
+μlog⁡, mon=0,0601−0,5⋅σ212,σlog⁡, mon=σ12\mu_{\log,\,mon} = \frac{0{,}0601 - 0{,}5 \cdot \sigma^2}{12}, \quad \sigma_{\log,\,mon} = \frac{\sigma}{\sqrt{12}}μlog,mon=120,0601−0,5⋅σ2,σlog,mon=12σ 
+•	Simulation:
+o	Anzahl Pfade: 10.000
+o	Je Pfad/Monat: ziehe Z∼N(μlog⁡, mon,σlog⁡, mon)Z \sim \mathcal{N}(\mu_{\log,\,mon}, \sigma_{\log,\,mon})Z∼N(μlog,mon,σlog,mon), Wachstumsfaktor = exp⁡(Z)\exp(Z)exp(Z).
+o	Wende die gleiche Cashflow Logik an wie oben (Einmalbetrag + vorschüssige Monatsraten inkl. jährlicher Erhöhung).
+o	Für jeden Monat ttt: berechne Quantil_0.05 über alle Pfade → ergibt die Worst Case Linie.
+2.3 Linie „Eingezahlt“ (Linie 4)
+•	Zeige die kumulierte Einzahlung über die Zeit:
+o	Start mit Einmalbetrag LLL in Monat 0.
+o	Addiere pro Monat die vorschüssige Monatsrate MtM_tMt inkl. jährlicher Erhöhung ggg.
+•	Keine Verzinsung, gestrichelter Linienstil.
+2.4 Darstellung
+•	Legende (in dieser Reihenfolge):
+1.	Optimistisches Szenario
+2.	Erwartetes Szenario
+3.	Worst Case (5. Perzentil)
+4.	Eingezahlt
+•	„Eingezahlt“ gestrichelt, die anderen durchgezogen.
+•	Währungsformat: EUR, ganze Euro, de AT („10.000 €“).
+3) Entnahmeplanung
+•	Unverändert lassen. Keine Änderungen am Entnahme Modul.
+4) Akzeptanzkriterien (Checks)
+•	Strategie Sub Labels sichtbar: „ca. 5% p.a.“ / „ca. 7% p.a.“
+•	Chart zeigt vier Linien wie spezifiziert, mit korrekten Legendentexten.
+•	In allen Rendite Linien (arithmetisch & Monte Carlo) ist TER 0,99 % p.a. berücksichtigt:
+o	Arithmetische Linien nutzen 8,01 % bzw. 6,01 % p.a. (Netto).
+o	Monte Carlo nutzt Netto Drift 6,01 % p.a. in den lognormalen Monatsparametern.
+•	„Worst Case (5. Perzentil)“ ist eine Zeitreihe (nicht nur ein Endpunkt).
+•	„Eingezahlt“ ist unverzinst und gestrichelt.
+•	Rechenzeit bei 10.000 Pfaden bleibt browser tauglich (ggf. Web Worker verwenden).

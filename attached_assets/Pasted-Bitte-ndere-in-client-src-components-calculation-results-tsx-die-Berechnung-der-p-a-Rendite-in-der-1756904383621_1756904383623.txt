@@ -1,0 +1,64 @@
+Bitte ändere in client/src/components/calculation-results.tsx die Berechnung der p.a.-Rendite in der Worst-Case-Kachel wie folgt:
+
+Entferne die aktuelle Logik, die abhängig vom inflationAdjusted-Schalter entweder nominale oder reale Cashflows verwendet und dadurch negative Renditen erzeugt.
+
+Ersetze sie durch eine immer nominale Berechnung der IRR:
+
+Baue die nominalen Cashflows:
+
+t=0: Einmalbetrag negativ
+
+t=1..N: monatliche Raten nominal negativ
+
+Letzte Periode: Endwert (worstCaseEndNominal) positiv hinzufügen
+
+Berechne darauf eine robuste monatliche IRR mit deiner vorhandenen irrMonthlyBisection Funktion.
+
+Annualisiere: irrPa = Math.pow(1 + irrMonthly, 12) - 1
+
+Fallback: Falls IRR nicht konvergiert, nutze CAGR:
+irrPa = Math.pow(endValue / totalNominalPaid, 1/years) - 1
+
+Zeige in der Worst-Case-Kachel immer diesen nominalen Wert an – unabhängig vom Inflations-Schalter.
+
+Entferne alle alten Codeblöcke, die mit „if (inputs.inflationAdjusted)…“ unterschiedliche IRR-Berechnungen machen.
+
+Beispiel-Code für den neuen Block (ersetze deinen aktuellen Worst-Case-Berechnungsabschnitt):
+
+const worstCaseEndNominal = result.worstCase;
+const yearsTotal = inputs.targetAge - inputs.currentAge;
+
+function buildNominalCashflowsForWorstCase(inputs: CalculatorInputs, endValue: number): number[] {
+  const months = yearsTotal * 12;
+  const cfs: number[] = [];
+  cfs.push(-inputs.oneTimeAmount);
+  for (let m = 1; m <= months; m++) {
+    const yIdx = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + (inputs.annualIncrease || 0) / 100, yIdx);
+    cfs.push(-monthly);
+  }
+  cfs[cfs.length - 1] += Math.max(0, endValue);
+  return cfs;
+}
+
+const nominalCFs = buildNominalCashflowsForWorstCase(inputs, worstCaseEndNominal);
+const irrMonthly = irrMonthlyBisection(nominalCFs);
+let irrPaToDisplay: number | null = null;
+
+if (irrMonthly !== null && isFinite(irrMonthly)) {
+  irrPaToDisplay = Math.pow(1 + irrMonthly, 12) - 1;
+} else {
+  const totalNominalPaid = nominalCFs.filter(cf => cf < 0).reduce((s, cf) => s - cf, 0);
+  irrPaToDisplay = totalNominalPaid > 0
+    ? Math.pow(worstCaseEndNominal / totalNominalPaid, 1 / yearsTotal) - 1
+    : null;
+}
+
+const formatPct = (x: number | null) => x === null ? '–' : `${(x * 100).toFixed(2)}% p.a.`;
+
+
+Und in der JSX-Kachel:
+
+<p className="text-xs text-red-700 mt-1">
+  entspricht ca. {formatPct(irrPaToDisplay)}
+</p>

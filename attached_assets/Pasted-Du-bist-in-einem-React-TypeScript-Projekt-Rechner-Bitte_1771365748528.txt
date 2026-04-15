@@ -1,0 +1,77 @@
+Du bist in einem React/TypeScript Projekt (Rechner). Bitte behebe folgende Bugs und verbessere die UX. Arbeite sauber und minimal-invasiv. Achte darauf, dass die Berechnung IMMER die Werte nutzt, die in den Eingabefeldern stehen.
+
+========================
+BUG 1: Zahlen-Inputs sind schlecht editierbar (0 bleibt stehen)
+========================
+Problem:
+Beim Klick in Number-Inputs kann man bestehende Werte nicht sauber löschen, es bleibt oft eine "0" stehen. Ursache ist sehr wahrscheinlich: onChange parsed direkt zu number und ersetzt "" sofort durch 0.
+
+Fix:
+- Stelle alle relevanten Eingabefelder auf "string state" um (controlled input mit string).
+- Erlaube leere Eingabe "" während des Tippens.
+- Parse zu number erst beim Berechnen (oder beim onBlur normalisieren).
+- Verwende eine Helper-Funktion parseNumberSafe(value: string, fallback: number) die "" oder invalid sauber behandelt.
+- Beispiel: stateOneTimeAmountStr: string, stateMonthlyAmountStr: string etc.
+- Beim Submit/Berechnen erzeuge ein CalculationInputs Objekt aus den Strings (Number(...) oder parseFloat) und fallbacke nur dort.
+
+Akzeptanzkriterium:
+- Ich kann ein Feld anklicken, STRG+A, DEL drücken und es bleibt leer (nicht "0").
+- Ich kann danach z.B. "100000" tippen ohne dass ständig "0" rein springt.
+
+========================
+BUG 2: Entnahme-Endalter wird nicht korrekt übernommen (springt auf 90 / Graph rechnet falsch)
+========================
+Problem:
+Wenn ich Entnahme-Endalter ändere und "neu berechnen" drücke, wird oft wieder 90 genommen. Es funktioniert nur, wenn ich danach die Strategie umschalte. Graph/Ergebnisse passen dann trotzdem nicht zuverlässig.
+
+Fix:
+- In withdrawal-planning.tsx:
+  - Nutze lokale States strategy/startAge/endAge als Quelle.
+  - Entferne/ändere useEffect so, dass User-Eingaben nicht durch result.* überschrieben werden (nur initial setzen, nicht bei jedem result-change).
+  - Implementiere einen expliziten "Recalculate" Trigger: Wenn ich auf "Neu berechnen" klicke oder beim Blur, muss onStrategyChange(strategy, startAge, endAge) mit den AKTUELLEN lokalen States aufgerufen werden.
+  - Vermeide stale state: rufe onStrategyChange entweder in einem useEffect auf, der auf [strategy,startAge,endAge] reagiert (nur wenn dirty), oder übergib beim onChange direkt den neuen Wert an eine Funktion recalcWith(newStart, newEnd, strategy).
+
+Akzeptanzkriterium:
+- Ich tippe Endalter=100, klicke "Neu berechnen" -> Ergebnisse & Graph basieren auf 100 (nicht 90).
+- Es funktioniert ohne Strategie umschalten.
+
+========================
+BUG 3 / UX: Änderungen sollen "dirty" markieren, Chart ausgrauen + Button "Neu berechnen"
+========================
+Ziel:
+Wenn ich irgendwo Werte ändere, soll NICHT automatisch gerechnet werden. Stattdessen:
+- Über dem Chart erscheint ein Overlay/Infobox: "Du hast Werte geändert – bitte neu berechnen"
+- Chart wird leicht ausgegraut (opacity) bis neu berechnet wurde.
+- Es gibt einen Button "Neu berechnen".
+- Es soll getrennt sein:
+  - Änderungen in der Vermögens-Ansparphase => nur Vermögensberechnung dirty
+  - Änderungen in der Entnahmeplanung => nur Entnahmeplanung dirty
+
+Umsetzung:
+- Füge States hinzu:
+  - savingsDirty: boolean
+  - withdrawalDirty: boolean
+- Setze savingsDirty=true bei Änderungen in den Haupt-Eingaben (Startalter, Zielalter, Einmalbetrag, Sparrate, jährliche Erhöhung, Strategie, Inflation-Option etc.).
+- Setze withdrawalDirty=true bei Änderungen in startAge/endAge/withdrawal strategy.
+- Wenn savingsDirty=true:
+  - zeige "Neu berechnen" Banner über dem Vermögenschart
+  - Button löst die MonteCarlo/Anspar-Berechnung mit den aktuellen Formwerten aus
+  - danach savingsDirty=false
+- Wenn withdrawalDirty=true:
+  - zeige Banner über dem Entnahmechart
+  - Button löst onStrategyChange(...) aus
+  - danach withdrawalDirty=false
+- Achte darauf, dass "Berechnung starten" bzw. "Neu berechnen" immer aus dem aktuellen Form-State (Strings) die Zahlen parsed und NICHT default values nutzt.
+
+Akzeptanzkriterium:
+- Ich ändere eine Zahl → Overlay erscheint, Chart ist ausgegraut, es wird NICHT automatisch neu gerechnet.
+- Klick auf "Neu berechnen" nutzt exakt die eingegebenen Werte und entfernt das Overlay.
+
+========================
+Hinweise
+========================
+- Bitte ändere nur so viel wie nötig.
+- Alle Änderungen TypeScript-sicher.
+- Keine zusätzlichen Libraries.
+- Stelle sicher, dass Eingaben weiterhin validiert sind (z.B. min/max) aber ohne das "0 bleibt stehen" Problem.
+- Gib mir am Ende eine kurze Liste, welche Files du geändert hast und was genau.

@@ -1,0 +1,139 @@
+Bitte ergänze in der Entnahmeplanung eine dritte Entnahmestrategie:
+
+Name:
+- "Individuell"
+
+Untertitel:
+- "Individuelle Entnahme"
+
+Ziel:
+Die Nutzer:innen sollen bei dieser Strategie einen frei wählbaren monatlichen Eurobetrag eingeben können, z. B. 300 €.
+Die monatliche Entnahme soll dann exakt diesem Betrag entsprechen.
+Der Kapitalverlauf / Graph in der Entnahmeplanung soll sich entsprechend mit genau diesem Entnahmebetrag neu berechnen.
+Die bestehenden Strategien "4%-Regel" und "Maximum" sollen unverändert bleiben.
+
+================================
+1) Types / Modelle erweitern
+================================
+Bitte zuerst alle betroffenen Typen erweitern.
+
+Suche alle Stellen, an denen die Entnahmestrategie aktuell als
+- `'4percent' | 'maximum'`
+definiert ist.
+
+Erweitere das auf:
+- `'4percent' | 'maximum' | 'custom'`
+
+Falls ein Typ wie `WithdrawalResult["strategy"]` oder Props / Handler / State betroffen sind, dort ebenfalls anpassen.
+
+Zusätzlich:
+- Falls sinnvoll, füge im `WithdrawalResult` oder in den Berechnungsfunktionen ein Feld hinzu für den benutzerdefinierten Betrag, z. B. `customMonthlyAmount?: number`.
+
+================================
+2) UI in withdrawal-planning.tsx erweitern
+================================
+Datei:
+- `client/src/components/withdrawal-planning.tsx`
+
+Bitte:
+- eine dritte Auswahlkarte im RadioGroup hinzufügen:
+  - Titel: `Individuell`
+  - Untertitel: `Individuelle Entnahme`
+
+Wenn `strategy === 'custom'` ausgewählt ist:
+- zeige unterhalb der Strategieauswahl ein zusätzliches Eingabefeld:
+  - Label: `Monatliche Entnahme`
+  - Typ: number
+  - Eingabe in Euro
+- dieses Feld soll editierbar sein und den individuellen Entnahmebetrag steuern
+
+Wichtig:
+- Die bestehenden Felder für Entnahme-Startalter und Entnahme-Endalter bleiben bestehen
+- Die beiden bestehenden Strategien dürfen optisch und funktional unverändert bleiben
+
+Bitte darauf achten:
+- Das Input-Feld für den individuellen Betrag soll nur sichtbar sein, wenn die Strategie "Individuell" gewählt ist
+- Bei Wechsel zurück auf "4%-Regel" oder "Maximum" soll das Feld verschwinden, ohne Fehler zu verursachen
+
+================================
+3) onStrategyChange / Parent-Kommunikation erweitern
+================================
+Der Callback `onStrategyChange(...)` muss erweitert werden, damit bei der Strategie "custom" auch der benutzerdefinierte Betrag an die Parent-Komponente weitergegeben wird.
+
+Aktuell ist der Callback vermutlich ungefähr so:
+```ts
+onStrategyChange: (strategy: '4percent' | 'maximum', startAge: number, endAge: number) => void;
+Bitte erweitern auf z. B.:
+onStrategyChange: (
+  strategy: '4percent' | 'maximum' | 'custom',
+  startAge: number,
+  endAge: number,
+  customMonthlyAmount?: number
+) => void;
+Alle betroffenen Props / Aufrufe / States entsprechend anpassen.
+Wichtig:
+•	Wenn Strategie "custom" aktiv ist, soll beim Ändern des Betrags die Parent-Berechnung neu ausgelöst werden können 
+•	Bestehende Strategien dürfen dadurch nicht beeinflusst werden 
+================================
+4) Berechnungslogik in financial-calculations.ts erweitern
+Datei:
+•	client/src/lib/financial-calculations.ts 
+Bitte die Funktion calculateWithdrawal(...) erweitern.
+Aktuell gibt es Logik für:
+•	4percent 
+•	maximum 
+Bitte ergänze:
+•	custom 
+Logik:
+•	Wenn strategy === 'custom', dann soll monthlyAmount exakt dem eingegebenen Betrag entsprechen 
+•	annualAmount = monthlyAmount * 12 
+•	totalWithdrawn = monthlyAmount * months 
+•	die Timeline / Kapitalentwicklung soll mit genau diesem konstanten nominalen monatlichen Entnahmebetrag berechnet werden 
+Wichtig:
+•	Bestehende Logik für 4percent und maximum NICHT verändern 
+•	Die Funktion generateWithdrawalTimeline(...) soll für custom mit dem übergebenen Betrag arbeiten, genau wie bei den anderen Strategien 
+Beispiel:
+•	Startkapital: 200.000 € 
+•	custom monthly amount: 300 € 
+•	Timeline soll jeden Monat 300 € abziehen 
+•	der Kapitalverlauf / Median / Worst / Best Case soll darauf basieren 
+Falls customMonthlyAmount fehlt oder ungültig ist:
+•	sinnvoller Fallback auf 0 oder eine sichere Validierung 
+•	aber keine Crashes / NaN-Werte 
+================================
+5) UI-Ergebnis anpassen
+In der Ergebnisbox der Entnahmeplanung soll bei Strategie "Individuell" natürlich ebenfalls der eingegebene Betrag angezeigt werden:
+•	Monatliche Entnahme = exakt der eingegebene Wert 
+•	Jährliche Entnahme = *12 
+•	Gesamt entnommen = * Laufzeit 
+Graph:
+•	Kapitalverlauf muss sich entsprechend anpassen 
+================================
+6) Dirty-State / Neu berechnen berücksichtigen
+Falls es für die Entnahmeplanung bereits einen "dirty" State oder eine Neuberechnungslogik gibt:
+•	Änderungen im individuellen Entnahmefeld sollen die Entnahmeplanung ebenfalls als "dirty" markieren 
+•	der Graph soll sich nach "Neu berechnen" korrekt aktualisieren 
+================================
+7) Validierung
+Bitte einfache Validierung einbauen:
+•	negativer Wert nicht erlaubt 
+•	leeres Feld soll nicht crashen 
+•	Eingabe 0 € soll technisch funktionieren 
+================================
+8) Acceptance Criteria
+•	Es gibt jetzt drei Strategien: 
+o	4%-Regel 
+o	Maximum 
+o	Individuell 
+•	Bei "Individuell" erscheint ein Eingabefeld für die monatliche Entnahme 
+•	Der eingegebene Betrag wird exakt als monatliche Entnahme verwendet 
+•	Der Kapitalverlauf / Graph passt sich an diesen Betrag an 
+•	Die Strategien "4%-Regel" und "Maximum" funktionieren weiterhin unverändert 
+•	Keine Regressionen in bestehenden Berechnungen 
+================================
+9) Bitte am Ende kurz zusammenfassen
+Bitte nenne mir:
+•	welche Dateien du geändert hast 
+•	welche Typen du erweitert hast 
+•	wie du die neue Strategie "custom" in die Berechnungslogik eingebaut hast
+

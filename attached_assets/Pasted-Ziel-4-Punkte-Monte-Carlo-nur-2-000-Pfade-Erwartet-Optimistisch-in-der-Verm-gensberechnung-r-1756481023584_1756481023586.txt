@@ -1,0 +1,98 @@
+Ziel (4 Punkte):
+
+Monte Carlo nur 2.000 Pfade.
+
+Erwartet & Optimistisch in der Vermögensberechnung real (heutige Kaufkraft) darstellen, Worst Case bleibt nominal.
+
+Entnahmeplanung: Wenn „inflationsbereinigt“ aktiv ist, wird der nominale konstante Entnahmebetrag auf heutige Kaufkraft abgezinst (über die Ansparlaufzeit).
+
+Keine automatische jährliche Erhöhung der Entnahme mehr – Entnahme bleibt konstant nominal.
+
+1) financial-calculations.ts – Simulation Pfade reduzieren
+export const SIMULATION_PARAMS = {
+  ausgewogen: { annualReturn: 0.05, volatility: 0.09 },
+  dynamisch: { annualReturn: 0.07, volatility: 0.14 },
+  inflationRate: 0.025,
+  productCosts: 0.0099,
+  simulations: 2000,   // statt 10000
+};
+
+2) calculation-results.tsx – Erwartet/Optimistisch real
+
+👉 wie im letzten Prompt beschrieben: calculateScenarios() anpassen, sodass Erwartet und Optimistisch inflationsbereinigt (deflator pro Jahr), Worst Case nominal bleibt.
+
+3) financial-calculations.ts – Entnahmeberechnung
+A) In calculateMaximumWithdrawal
+function calculateMaximumWithdrawal(
+  startingCapital: number,
+  months: number,
+  inflationAdjusted: boolean,
+  portfolio: Strategy
+): number {
+  const { net } = getAnnualParamsForStrategy(portfolio);
+  const monthlyReturn = Math.pow(1 + net, 1/12) - 1;
+
+  // immer konstante nominale Entnahme berechnen
+  return startingCapital * monthlyReturn / (1 - Math.pow(1 + monthlyReturn, -months));
+}
+
+
+👉 keine Abhängigkeit mehr von inflationAdjusted in der Formel (immer konstant nominal).
+
+B) In calculateWithdrawal nach monthlyAmount hinzufügen:
+// Nominaler konstanter Monatsbetrag ist monthlyAmount.
+// Anzeige-Wert inflationsbereinigt (heutige Kaufkraft) über ANSPAR-Dauer abzinsen:
+let displayMonthlyAmount = monthlyAmount;
+if (inflationAdjusted && accumYears > 0) {
+  const discount = Math.pow(1 + SIMULATION_PARAMS.inflationRate, accumYears);
+  displayMonthlyAmount = monthlyAmount / discount;
+}
+
+C) Rückgabe anpassen:
+return {
+  monthlyAmount: Math.round(displayMonthlyAmount),     // Anzeige
+  annualAmount: Math.round(displayMonthlyAmount * 12), // Anzeige
+  totalWithdrawn: Math.round(displayMonthlyAmount * months), // Anzeige
+  timeline, // Timeline bleibt nominal, mit konstantem Entnahmebetrag
+  strategy,
+  startAge,
+  endAge,
+  expectedValue,
+};
+
+D) In generateWithdrawalTimeline Entnahme konstant halten:
+
+Ersetze die Zeile:
+
+const monthlyDraw = inflationAdjusted ? monthlyWithdrawal * inflationFactorYear : monthlyWithdrawal;
+
+
+durch:
+
+const monthlyDraw = monthlyWithdrawal; // immer konstant nominal
+
+4) Aufruf von calculateWithdrawal anpassen (accumYears übergeben)
+
+In deinem Parent/Container, wo calculateWithdrawal aufgerufen wird:
+
+const withdrawal = calculateWithdrawal(
+  endCapital,
+  withdrawalMode,
+  inputs.targetAge,
+  inputs.withdrawalEndAge ?? 90,
+  inputs.inflationAdjusted,
+  inputs.strategy as 'ausgewogen' | 'dynamisch',
+  undefined, // simParams optional
+  inputs.targetAge - inputs.currentAge // Ansparjahre für Abzinsung
+);
+
+
+✅ Ergebnis:
+
+Monte Carlo rechnet nur 2.000 Pfade.
+
+Erwartet & Optimistisch in Vermögensansicht real.
+
+Entnahme konstant nominal, keine automatische jährliche Steigerung.
+
+Bei aktivem Inflations-Flag werden die Entnahmewerte für die Anzeige inflationsbereinigt dargestellt (heutige Kaufkraft).

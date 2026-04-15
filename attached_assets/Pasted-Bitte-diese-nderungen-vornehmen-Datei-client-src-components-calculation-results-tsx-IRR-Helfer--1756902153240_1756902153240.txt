@@ -1,0 +1,172 @@
+Bitte diese Änderungen vornehmen:
+
+Datei: client/src/components/calculation-results.tsx
+
+IRR-Helfer robuster machen (Bisection mit sauberem Bracketing & Fallback)
+Füge oberhalb des JSX folgende Utilities ein (oder ersetze vorhandene entsprechend):
+
+// --- Inflation helpers ---
+function deflateFactor(monthIndex: number, annualInflation = 0.025) {
+  return Math.pow(1 + annualInflation, monthIndex / 12);
+}
+
+// --- Cashflow builder (REAL: inflationsbereinigt, NOMINAL: unverändert) ---
+// WICHTIG: Terminalwert als SEPARATER letzter Cashflow pushen (eigene Periode),
+// damit die Cashflow-Signatur (negativ -> positiv) garantiert ist.
+
+function buildRealCashflowsForWorstCase(
+  inputs: CalculatorInputs,
+  worstCaseEndNominal: number,
+  annualInflation = 0.025
+): number[] {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  const cfs: number[] = [];
+
+  // t=0: Einmalbetrag (heutige Kaufkraft) -> negativ
+  cfs.push(-inputs.oneTimeAmount);
+
+  // t=1..months: monatliche Einzahlungen (real, abgezinst auf heute) -> negativ
+  for (let m = 1; m <= months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-(monthly / deflateFactor(m, annualInflation)));
+  }
+
+  // Extra-Periode am Ende: Endvermögen real (Endwert nominal auf heute abgezinst) -> positiv
+  const endReal = worstCaseEndNominal / deflateFactor(months, annualInflation);
+  cfs.push(endReal);
+
+  return cfs;
+}
+
+function buildNominalCashflowsForWorstCase(
+  inputs: CalculatorInputs,
+  worstCaseEndNominal: number
+): number[] {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  const cfs: number[] = [];
+
+  // t=0: Einmalbetrag nominal -> negativ
+  cfs.push(-inputs.oneTimeAmount);
+
+  // t=1..months: monatliche Einzahlungen nominal -> negativ
+  for (let m = 1; m <= months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-monthly);
+  }
+
+  // Extra-Periode: Endvermögen nominal -> positiv
+  cfs.push(worstCaseEndNominal);
+
+  return cfs;
+}
+
+// --- Robuste IRR (monatlich) via Bisection mit Bracketing-Expansion ---
+function irrMonthlyBisection(cashflows: number[], maxIter = 120, tol = 1e-9): number | null {
+  // initiale Schranken
+  let lo = -0.95, hi = 0.50; // realistischere obere Schranke (50% mtl. reicht)
+  const npv = (r: number) => cashflows.reduce((acc, cf, t) => acc + cf / Math.pow(1 + r, t), 0);
+
+  let fLo = npv(lo);
+  let fHi = npv(hi);
+
+  // Wenn gleiches Vorzeichen: Grenze adaptiv erweitern (max. 10 Schritte)
+  let expandSteps = 0;
+  while (fLo * fHi > 0 && expandSteps < 10) {
+    // erweitere hi bis 1.0, dann lo Richtung -0.99
+    if (Math.abs(fHi) < Math.abs(fLo) && hi < 1.0) {
+      hi = Math.min(1.0, hi + 0.25);
+      fHi = npv(hi);
+    } else {
+      lo = Math.max(-0.99, lo - 0.02);
+      fLo = npv(lo);
+    }
+    expandSteps++;
+  }
+
+  // Falls immer noch kein Bracket → keine IRR (z. B. alle CFs negativ/positiv)
+  if (fLo * fHi > 0) return null;
+
+  for (let i = 0; i < maxIter; i++) {
+    const mid = 0.5 * (lo + hi);
+    const fMid = npv(mid);
+
+    if (!isFinite(fMid)) { // Sicherheit
+      hi = mid;
+      continue;
+    }
+    if (Math.abs(fMid) < tol) return mid;
+
+    if (fLo * fMid <= 0) {
+      hi = mid; fHi = fMid;
+    } else {
+      lo = mid; fLo = fMid;
+    }
+  }
+  // nicht konvergiert → best effort
+  return 0.5 * (lo + hi);
+}
+
+// Fallback: CAGR real/nominal über "Total Paid" (nur Schätzung)
+function cagrFallback(endValue: number, totalPaid: number, years: number): number | null {
+  if (totalPaid <= 0 || endValue <= 0) return null;
+  return Math.pow(endValue / totalPaid, 1 / years) - 1;
+}
+
+// Summe negativer CFs (Beträge)
+function sumNegatives(cfs: number[]): number {
+  return cfs.reduce((s, x) => s + (x < 0 ? -x : 0), 0);
+}
+
+const formatPct = (x: number | null) => x === null ? '–' : `${(x * 100).toFixed(2)}% p.a.`;
+
+
+Worst-Case-Rendite abhängig vom Modus berechnen – und NIE eskalieren
+Direkt unter deiner Chart-Daten/Szenarien diese Logik einfügen/ersetzen:
+
+// Worst-Case Rendite (für Kachel) – nominal ODER real, je nach Option:
+const worstCaseEndNominal = result.worstCase;
+const yearsTotal = inputs.targetAge - inputs.currentAge;
+
+let irrPaToDisplay: number | null = null;
+
+if (inputs.inflationAdjusted) {
+  // REAL: alle CFs auf heutige Kaufkraft
+  const cfsReal = buildRealCashflowsForWorstCase(inputs, worstCaseEndNominal, 0.025);
+  const irrM = irrMonthlyBisection(cfsReal);
+  if (irrM !== null && isFinite(irrM)) {
+    irrPaToDisplay = Math.pow(1 + irrM, 12) - 1;
+  } else {
+    // Fallback: CAGR real über Summe realer Einzahlungen
+    const years = yearsTotal;
+    const months = years * 12;
+    const endReal = worstCaseEndNominal / deflateFactor(months, 0.025);
+    const totalRealPaid = sumNegatives(cfsReal);
+    irrPaToDisplay = cagrFallback(endReal, totalRealPaid, years);
+  }
+} else {
+  // NOMINAL:
+  const cfsNom = buildNominalCashflowsForWorstCase(inputs, worstCaseEndNominal);
+  const irrM = irrMonthlyBisection(cfsNom);
+  if (irrM !== null && isFinite(irrM)) {
+    irrPaToDisplay = Math.pow(1 + irrM, 12) - 1;
+  } else {
+    const totalNomPaid = sumNegatives(cfsNom);
+    irrPaToDisplay = cagrFallback(worstCaseEndNominal, totalNomPaid, yearsTotal);
+  }
+}
+
+
+Kachel-Text ersetzen (ohne „(nominal)“)
+In der Worst-Case-Kachel (rote Box) unter dem Betrag:
+
+<p className="text-xs text-red-700 mt-1">
+  entspricht ca. {formatPct(irrPaToDisplay)}
+</p>
+
+
+Einzahlungs-Linienlabel bleibt wie umgesetzt
+(„Einzahlung (Inflationsbereinigt)“ wenn inputs.inflationAdjusted === true.)

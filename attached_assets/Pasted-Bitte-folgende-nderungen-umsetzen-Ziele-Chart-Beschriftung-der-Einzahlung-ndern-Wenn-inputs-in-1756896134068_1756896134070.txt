@@ -1,0 +1,179 @@
+Bitte folgende Änderungen umsetzen:
+
+Ziele
+
+Chart-Beschriftung der Einzahlung ändern:
+Wenn inputs.inflationAdjusted === true, soll die Linien-Beschriftung für die Einzahlungen im Vermögens-Chart „Einzahlung (Inflationsbereinigt)“ heißen (statt „Eingezahlt“).
+
+Worst-Case-Rendite in der Kachel weiterhin nominal berechnen und anzeigen:
+Auch wenn inflationAdjusted === true, soll der Text „entspricht ca. x % p.a.“ in der Worst-Case-Kachel auf Basis nominaler Cashflows berechnet werden (nominale Einzahlungen & nominales Worst-Case-Endvermögen). Zielgröße ca. 1,2 % p.a. (je nach Parametern).
+
+Datei: client/src/components/calculation-results.tsx
+
+Tooltip/Legend-Name für Einzahlung konditional setzen
+
+Suche den <Line … dataKey="totalPaid" … name="Eingezahlt" /> Block im Chart und ersetze ihn durch:
+
+<Line
+  type="monotone"
+  dataKey="totalPaid"
+  stroke="#6b7280"
+  strokeWidth={2}
+  strokeDasharray="5 5"
+  dot={false}
+  name={inputs.inflationAdjusted ? "Einzahlung (Inflationsbereinigt)" : "Eingezahlt"}
+/>
+
+
+Passe zusätzlich im Tooltip-Formatter den Anzeigenamen für totalPaid an:
+
+<Tooltip 
+  formatter={(value: number, name: string) => [
+    formatCurrency(value), 
+    name === 'optimistic' ? 'Optimistisches Szenario' :
+    name === 'expected'   ? 'Erwartetes Szenario' :
+    name === 'worstCase'  ? 'Worst Case (5. Perzentil)' :
+    name === 'totalPaid'  ? (inputs.inflationAdjusted ? 'Einzahlung (Inflationsbereinigt)' : 'Eingezahlt') : name
+  ]}
+  ...
+/>
+
+
+Hinweis: Die Werte der Einzahlungslinie habt ihr bereits inflationsbereinigt (Deflation) umgesetzt. Hier ändern wir nur die Labels, damit UI & Werte konsistent sind.
+
+Nominale Worst-Case-Rendite berechnen und in der Kachel anzeigen
+
+Oberhalb des JSX-Returns (unterhalb deiner calculateScenarios()-Berechnung) füge folgende Hilfsfunktionen ein:
+
+// Nominaler Gesamtbetrag der Einzahlungen (ohne Inflationseffekte auf die Beträge)
+function computeNominalTotalPaid(inputs: CalculatorInputs): number {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  let total = inputs.oneTimeAmount;
+
+  for (let m = 1; m <= months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    total += monthly;
+  }
+  return total;
+}
+
+// Approx. monatliche IRR über Bisection (nominal)
+// Cashflows im Monatsabstand; negatives Vorzeichen = Einzahlung (Outflow)
+function approxIrrMonthly(cashflows: number[], maxIter = 80, tol = 1e-8): number {
+  let lo = -0.9999; // untere Schranke (nahe -100%/Monat)
+  let hi = 1.0;     // obere Schranke (+100%/Monat)
+
+  const npv = (r: number) => {
+    let v = 0;
+    for (let t = 0; t < cashflows.length; t++) {
+      v += cashflows[t] / Math.pow(1 + r, t);
+    }
+    return v;
+  };
+
+  let npvLo = npv(lo);
+  let npvHi = npv(hi);
+  // Falls gleiches Vorzeichen, versuche den Intervall etwas zu erweitern
+  if (npvLo * npvHi > 0) {
+    // Fallback: CAGR-Annäherung über totalPaid und Endwert (nur sinnvoll bei Einmalanlage)
+    return NaN;
+  }
+
+  for (let i = 0; i < maxIter; i++) {
+    const mid = 0.5 * (lo + hi);
+    const v = npv(mid);
+    if (Math.abs(v) < tol) return mid;
+    if (npvLo * v < 0) {
+      hi = mid;
+      npvHi = v;
+    } else {
+      lo = mid;
+      npvLo = v;
+    }
+  }
+  return 0.5 * (lo + hi);
+}
+
+// Baut nominale Monats-Cashflows: Einzahlungen negativ, am Ende nominales Worst-Case-Endvermögen positiv
+function buildNominalCashflowsForWorstCase(inputs: CalculatorInputs, worstCaseEndNominal: number): number[] {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+
+  const cfs: number[] = [];
+  // t=0: Einmalbetrag (Outflow)
+  if (inputs.oneTimeAmount && inputs.oneTimeAmount > 0) cfs.push(-inputs.oneTimeAmount);
+  else cfs.push(0);
+
+  // t=1..months-1: monatliche Einzahlungen mit Jahressteigerung (nominal)
+  for (let m = 1; m < months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-monthly);
+  }
+
+  // t=months: letzte Einzahlung + Endwert (positiv)
+  if (months > 0) {
+    const yearIndex = Math.floor((months - 1) / 12);
+    const monthlyLast = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-monthlyLast + worstCaseEndNominal);
+  }
+
+  return cfs;
+}
+
+
+Berechne daraus die nominale p.a.-Rendite für den Worst-Case-Wert:
+
+// Nominale Worst-Case p.a. Rendite
+const worstCaseEndNominal = result.worstCase; // Endwert Worst Case (nominal)
+const yearsTotal = inputs.targetAge - inputs.currentAge;
+
+// Cashflows nominal auf Monatsbasis (mit Monatsraten)
+const cfs = buildNominalCashflowsForWorstCase(inputs, worstCaseEndNominal);
+let worstCaseIrrPaNominal: number | null = null;
+
+if (inputs.monthlyAmount > 0) {
+  const irrMonthly = approxIrrMonthly(cfs);
+  if (!Number.isNaN(irrMonthly)) {
+    worstCaseIrrPaNominal = Math.pow(1 + irrMonthly, 12) - 1;
+  }
+} else {
+  // Fallback: CAGR für reine Einmalanlage
+  const totalPaidNominal = computeNominalTotalPaid(inputs); // = oneTimeAmount in diesem Pfad
+  if (totalPaidNominal > 0) {
+    worstCaseIrrPaNominal = Math.pow(worstCaseEndNominal / totalPaidNominal, 1 / yearsTotal) - 1;
+  }
+}
+
+// Formatierer
+const formatPct = (x: number | null) => x === null ? '–' : `${(x * 100).toFixed(2)}% p.a.`;
+
+
+Kachel-Text unter der Worst-Case-Kachel ergänzen/ersetzen (direkt in deinem „Key Results“-Grid, in der Worst-Case-Kachel):
+
+<div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+  <h3 className="text-sm font-medium text-red-700 mb-1">Worst Case (5. Perzentil)</h3>
+  <p className="text-2xl font-bold text-red-800">{formatCurrency(result.worstCase)}</p>
+  <p className="text-xs text-red-700 mt-1">
+    entspricht ca. {formatPct(worstCaseIrrPaNominal)} (nominal)
+  </p>
+</div>
+
+
+Wichtig: Diese Rendite wird explizit nominal berechnet und angezeigt – unabhängig davon, ob die Gesamtansicht inflationsbereinigt ist. Genau das war das Ziel.
+
+Kurzer Funktionstest
+
+Inflationsbereinigt = an:
+
+Chart-Legende/Tooltip zeigt „Einzahlung (Inflationsbereinigt)“.
+
+Worst-Case-Kachel zeigt nominale p.a.-Rendite (aus nominalen Cashflows).
+
+Inflationsbereinigt = aus:
+
+Chart-Legende/Tooltip zeigt „Eingezahlt“.
+
+Worst-Case-Kachel unverändert (nominale Rendite).

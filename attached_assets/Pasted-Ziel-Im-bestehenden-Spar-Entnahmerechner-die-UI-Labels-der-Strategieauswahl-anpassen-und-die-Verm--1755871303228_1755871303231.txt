@@ -1,0 +1,307 @@
+Ziel: Im bestehenden Spar‑/Entnahmerechner die UI‑Labels der Strategieauswahl anpassen und die Vermögensdarstellung auf 4 Linien umstellen.
+Wichtig: Produktkosten (TER) 0,99 % p.a. müssen in allen Rendite‑Berechnungen berücksichtigt werden. Die Entnahmeplanung bleibt unverändert.
+
+1) UI – Strategieauswahl
+
+Ersetze die Unterzeilen (Sub‑Labels) der Strategien:
+
+Ausgewogen → Unterzeile: ca. 5% p.a.
+
+Dynamisch → Unterzeile: ca. 7% p.a.
+
+2) Chart – Vermögensentwicklung mit 4 Linien
+
+Zeige im Anspar‑Chart exakt diese vier Kurven (Legende in dieser Reihenfolge):
+
+Optimistisches Szenario – arithmetische Berechnung mit 9 % p.a. brutto, TER 0,99 % abziehen → 8,01 % p.a. netto
+
+Erwartetes Szenario – arithmetische Berechnung mit 7 % p.a. brutto, TER 0,99 % abziehen → 6,01 % p.a. netto
+
+Worst Case (5. Perzentil) – Monte‑Carlo mit 7 % p.a. brutto, TER 0,99 % abziehen → 6,01 % p.a. Netto‑Drift, 5. Perzentil über Pfade
+
+Eingezahlt – kumulierte Einzahlungen (Einmalbetrag + vorschüssige Monatsraten inkl. jährlicher Erhöhung, falls gesetzt), gestrichelt, ohne Verzinsung
+
+2.1 Arithmetische Szenarien (Linie 1 & 2)
+
+Verwende Netto‑Renditen nach TER:
+
+Optimistisch: r_pa_net = 0.0900 − 0.0099 = 0.0801 (8,01 % p.a.)
+
+Erwartet: r_pa_net = 0.0700 − 0.0099 = 0.0601 (6,01 % p.a.)
+
+Monatlicher Effektivzins:
+
+𝑟
+𝑚
+=
+(
+1
++
+𝑟
+_
+𝑝
+𝑎
+_
+𝑛
+𝑒
+𝑡
+)
+1
+/
+12
+−
+1
+r
+m
+	​
+
+=(1+r_pa_net)
+1/12
+−1
+
+Ansparlogik pro Monat 
+𝑡
+t (vorschüssige Zahlung):
+
+Einmalbetrag 
+𝐿
+L: 
+𝐿
+⋅
+(
+1
++
+𝑟
+𝑚
+)
+𝑡
+L⋅(1+r
+m
+	​
+
+)
+t
+
+Monatsrate 
+𝑀
+𝑡
+M
+t
+	​
+
+ mit optionaler jährlicher Erhöhung 
+𝑔
+g:
+
+𝑀
+𝑡
+=
+𝑀
+0
+⋅
+(
+1
++
+𝑔
+)
+⌊
+𝑡
+/
+12
+⌋
+M
+t
+	​
+
+=M
+0
+	​
+
+⋅(1+g)
+⌊t/12⌋
+; vorschüssig verzinsen mit Faktor 
+(
+1
++
+𝑟
+𝑚
+)
+(1+r
+m
+	​
+
+) in der jeweiligen Periode.
+
+Summiere beide Komponenten zum Vermögensstand.
+
+Wenn die App bereits Inflation getrennt handhabt: keine zusätzliche Inflationslogik hier ändern; nur TER ist neu zu berücksichtigen.
+
+2.2 Monte‑Carlo (Linie 3)
+
+Ziel: Für jeden Monat 
+𝑡
+t das 5. Perzentil der Vermögenspfade plotten (Zeitreihe des 5 %-Quantils, nicht nur Endwert).
+
+Brutto‑Annahme: 7 % p.a., TER 0,99 % p.a. abziehen → Netto‑Drift 6,01 % p.a.
+
+Jahresvolatilität: bestehende App‑Einstellung verwenden (z. B. profilabhängig). Falls nicht vorhanden: Default σ = 14 % p.a.
+
+Monatliche Log‑Parameter (lognormales Modell empfohlen):
+
+𝜇
+log
+⁡
+,
+ 
+𝑚
+𝑜
+𝑛
+=
+0,0601
+−
+0,5
+⋅
+𝜎
+2
+12
+,
+𝜎
+log
+⁡
+,
+ 
+𝑚
+𝑜
+𝑛
+=
+𝜎
+12
+μ
+log,mon
+	​
+
+=
+12
+0,0601−0,5⋅σ
+2
+	​
+
+,σ
+log,mon
+	​
+
+=
+12
+	​
+
+σ
+	​
+
+
+Simulation:
+
+Anzahl Pfade: 2.000 (konfigurierbar).
+
+Je Pfad/Monat: ziehe 
+𝑍
+∼
+𝑁
+(
+𝜇
+log
+⁡
+,
+ 
+𝑚
+𝑜
+𝑛
+,
+𝜎
+log
+⁡
+,
+ 
+𝑚
+𝑜
+𝑛
+)
+Z∼N(μ
+log,mon
+	​
+
+,σ
+log,mon
+	​
+
+), Wachstumsfaktor = 
+exp
+⁡
+(
+𝑍
+)
+exp(Z).
+
+Wende die gleiche Cashflow‑Logik an wie oben (Einmalbetrag + vorschüssige Monatsraten inkl. jährlicher Erhöhung).
+
+Für jeden Monat 
+𝑡
+t: berechne Quantil_0.05 über alle Pfade → ergibt die Worst‑Case‑Linie.
+
+2.3 Linie „Eingezahlt“ (Linie 4)
+
+Zeige die kumulierte Einzahlung über die Zeit:
+
+Start mit Einmalbetrag 
+𝐿
+L in Monat 0.
+
+Addiere pro Monat die vorschüssige Monatsrate 
+𝑀
+𝑡
+M
+t
+	​
+
+ inkl. jährlicher Erhöhung 
+𝑔
+g.
+
+Keine Verzinsung, gestrichelter Linienstil.
+
+2.4 Darstellung
+
+Legende (in dieser Reihenfolge):
+
+Optimistisches Szenario
+
+Erwartetes Szenario
+
+Worst Case (5. Perzentil)
+
+Eingezahlt
+
+„Eingezahlt“ gestrichelt, die anderen durchgezogen.
+
+Währungsformat: EUR, ganze Euro, de‑AT („10.000 €“).
+
+3) Entnahmeplanung
+
+Unverändert lassen. Keine Änderungen am Entnahme‑Modul.
+
+4) Akzeptanzkriterien (Checks)
+
+Strategie‑Sub‑Labels sichtbar: „ca. 5% p.a.“ / „ca. 7% p.a.“
+
+Chart zeigt vier Linien wie spezifiziert, mit korrekten Legendentexten.
+
+In allen Rendite‑Linien (arithmetisch & Monte‑Carlo) ist TER 0,99 % p.a. berücksichtigt:
+
+Arithmetische Linien nutzen 8,01 % bzw. 6,01 % p.a. (Netto).
+
+Monte‑Carlo nutzt Netto‑Drift 6,01 % p.a. in den lognormalen Monatsparametern.
+
+„Worst Case (5. Perzentil)“ ist eine Zeitreihe (nicht nur ein Endpunkt).
+
+„Eingezahlt“ ist unverzinst und gestrichelt.
+
+Rechenzeit bei 2.000 Pfaden bleibt browser‑tauglich (ggf. Web‑Worker verwenden).

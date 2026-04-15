@@ -1,0 +1,84 @@
+Bitte verbessere den PDF-Export in `client/src/lib/pdf-export.ts` gezielt für den Vermögensentwicklungs-Chart.
+
+Ziel:
+Beim Abschnitt „Vermögensentwicklung“ auf Seite 2 soll wirklich **nur der Graph selbst** als Bild im PDF erscheinen.
+Die **interne Chart-Legende darf nicht im Screenshot enthalten sein**.
+Die Legende soll ausschließlich als Text unterhalb des Charts über `addChartLegend(...)` erscheinen.
+
+Aktueller Zustand:
+- Die HTML-/Recharts-Legende des Vermögenscharts ist offenbar noch Teil des DOM-Screenshots oder der Chart-Ref zeigt nicht exakt nur auf den Plot-Bereich.
+- Im PDF soll der eigentliche Chart gerendert werden, aber ohne integrierte Legende.
+- Die Text-Legende darunter soll bestehen bleiben.
+
+Bitte so umsetzen:
+
+================================
+1) Wealth-Chart nur ohne interne Legende rendern
+================================
+In `renderChartToCanvas(element, hideLegend = false)` reicht `visibility = hidden` für `.recharts-legend-wrapper` offenbar nicht zuverlässig.
+
+Bitte ändere die Logik so:
+- Blende beim Wealth-Chart **alle möglichen Legendenelemente vollständig aus**, nicht nur per visibility.
+- Nutze `display: none !important` bzw. setze inline `style.display = 'none'`.
+- Fange möglichst alle Recharts-Legenden ab:
+  - `.recharts-default-legend`
+  - `.recharts-legend-wrapper`
+  - `.recharts-surface + ul`
+  - ggf. weitere Legendenelemente im Container
+
+Wichtig:
+- Nach dem Screenshot müssen alle Stile wiederhergestellt werden.
+
+Bitte ersetze die aktuelle Wealth-Chart-Capture-Logik durch eine robustere Variante.
+
+================================
+2) Neue Helper-Funktion bauen
+================================
+Erstelle eine neue Funktion, z. B.:
+
+```ts
+async function renderChartWithoutInternalLegend(element: HTMLElement): Promise<HTMLCanvasElement> {
+  const candidates = Array.from(
+    element.querySelectorAll<HTMLElement>(
+      '.recharts-default-legend, .recharts-legend-wrapper, .recharts-surface + ul'
+    )
+  );
+
+  const originalStyles = candidates.map(el => ({
+    el,
+    display: el.style.display,
+    visibility: el.style.visibility,
+    height: el.style.height,
+    overflow: el.style.overflow,
+  }));
+
+  candidates.forEach(el => {
+    el.style.display = 'none';
+    el.style.visibility = 'hidden';
+    el.style.height = '0';
+    el.style.overflow = 'hidden';
+  });
+
+  try {
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      allowTaint: true,
+    });
+
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Chart konnte nicht gerendert werden');
+    }
+
+    return canvas;
+  } finally {
+    originalStyles.forEach(({ el, display, visibility, height, overflow }) => {
+      el.style.display = display;
+      el.style.visibility = visibility;
+      el.style.height = height;
+      el.style.overflow = overflow;
+    });
+  }
+}

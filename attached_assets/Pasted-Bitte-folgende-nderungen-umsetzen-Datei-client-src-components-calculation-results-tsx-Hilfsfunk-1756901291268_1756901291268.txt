@@ -1,0 +1,128 @@
+Bitte folgende Änderungen umsetzen:
+
+Datei: client/src/components/calculation-results.tsx
+
+Hilfsfunktionen für inflationsbereinigte Berechnung hinzufügen
+Füge diese Funktionen oberhalb des JSX-return (bei den anderen Helper-Funktionen) ein:
+
+// Deflationsfaktor für t Monate bei 2,5% p.a.
+function deflateFactor(monthIndex: number, annualInflation = 0.025) {
+  return Math.pow(1 + annualInflation, monthIndex / 12);
+}
+
+// Real (inflationsbereinigt) – alle Einzahlungen auf heutige Kaufkraft diskontieren
+function computeRealTotalPaid(inputs: CalculatorInputs, annualInflation = 0.025): number {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  let total = inputs.oneTimeAmount / deflateFactor(0, annualInflation);
+
+  for (let m = 1; m <= months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    total += monthly / deflateFactor(m, annualInflation);
+  }
+  return total;
+}
+
+// Reale Cashflows für Worst Case (Einzahlungen negativ, Endwert inflationsbereinigt)
+function buildRealCashflowsForWorstCase(inputs: CalculatorInputs, worstCaseEndNominal: number, annualInflation = 0.025): number[] {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  const cfs: number[] = [];
+
+  cfs.push(-inputs.oneTimeAmount); // t=0
+
+  for (let m = 1; m < months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-(monthly / deflateFactor(m, annualInflation)));
+  }
+
+  if (months > 0) {
+    const yearIndex = Math.floor((months - 1) / 12);
+    const monthlyLast = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    const worstCaseReal = worstCaseEndNominal / deflateFactor(months, annualInflation);
+    cfs.push(-(monthlyLast / deflateFactor(months, annualInflation)) + worstCaseReal);
+  }
+
+  return cfs;
+}
+
+// Nominale Cashflows (wie bisher)
+function buildNominalCashflowsForWorstCase(inputs: CalculatorInputs, worstCaseEndNominal: number): number[] {
+  const years = inputs.targetAge - inputs.currentAge;
+  const months = years * 12;
+  const cfs: number[] = [];
+
+  cfs.push(-inputs.oneTimeAmount);
+
+  for (let m = 1; m < months; m++) {
+    const yearIndex = Math.floor((m - 1) / 12);
+    const monthly = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-monthly);
+  }
+
+  if (months > 0) {
+    const yearIndex = Math.floor((months - 1) / 12);
+    const monthlyLast = inputs.monthlyAmount * Math.pow(1 + inputs.annualIncrease / 100, yearIndex);
+    cfs.push(-monthlyLast + worstCaseEndNominal);
+  }
+
+  return cfs;
+}
+
+// Bisection-IRR
+function approxIrrMonthly(cashflows: number[], maxIter = 80, tol = 1e-8): number {
+  let lo = -0.9999, hi = 1.0;
+
+  const npv = (r: number) => {
+    return cashflows.reduce((acc, cf, t) => acc + cf / Math.pow(1 + r, t), 0);
+  };
+
+  let npvLo = npv(lo), npvHi = npv(hi);
+  if (npvLo * npvHi > 0) return NaN;
+
+  for (let i = 0; i < maxIter; i++) {
+    const mid = 0.5 * (lo + hi);
+    const v = npv(mid);
+    if (Math.abs(v) < tol) return mid;
+    if (npvLo * v < 0) { hi = mid; npvHi = v; }
+    else { lo = mid; npvLo = v; }
+  }
+  return 0.5 * (lo + hi);
+}
+
+const formatPct = (x: number | null) => x === null ? '–' : `${(x * 100).toFixed(2)}% p.a.`;
+
+
+Worst-Case-Rendite abhängig von Inflationsmodus berechnen
+Unterhalb deiner chartData-Berechnung ergänzen:
+
+// Worst-Case p.a. Rendite
+const worstCaseEndNominal = result.worstCase;
+
+let worstCaseIrrPaToDisplay: number | null = null;
+
+if (inputs.inflationAdjusted) {
+  // REAL: Cashflows & Endwert inflationsbereinigt
+  const cfsReal = buildRealCashflowsForWorstCase(inputs, worstCaseEndNominal, 0.025);
+  const irrMonthlyReal = approxIrrMonthly(cfsReal);
+  if (!Number.isNaN(irrMonthlyReal)) {
+    worstCaseIrrPaToDisplay = Math.pow(1 + irrMonthlyReal, 12) - 1;
+  }
+} else {
+  // NOMINAL
+  const cfsNom = buildNominalCashflowsForWorstCase(inputs, worstCaseEndNominal);
+  const irrMonthlyNom = approxIrrMonthly(cfsNom);
+  if (!Number.isNaN(irrMonthlyNom)) {
+    worstCaseIrrPaToDisplay = Math.pow(1 + irrMonthlyNom, 12) - 1;
+  }
+}
+
+
+Text in der Worst-Case-Kachel anpassen
+In der Worst-Case-Kachel (unterhalb des angezeigten Betrags) den Rendite-Text ersetzen durch:
+
+<p className="text-xs text-red-700 mt-1">
+  entspricht ca. {formatPct(worstCaseIrrPaToDisplay)}
+</p>

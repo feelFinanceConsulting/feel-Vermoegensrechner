@@ -1,0 +1,120 @@
+Bitte folgende Änderungen umsetzen:
+
+Ziel
+
+In der Entnahmeplanung soll die maximale konstante nominale Entnahme so berechnet werden, dass der Median im Entnahme-Endalter ≈ 0 € ist.
+
+Monte-Carlo-Drift korrekt setzen (konsistent zur effektiven Jahresrendite).
+
+Timeline-Entnahme bleibt nominal konstant; kumuliert entnommen nicht künstlich mit Inflation hochrechnen.
+
+UI-Hinweistext in der Entnahmeplanung anpassen (keine jährliche Erhöhung mehr, nur Anzeige inflationsbereinigt).
+
+1) client/src/lib/financial-calculations.ts
+1.1 calculateMaximumWithdrawal ersetzen (Median-konsistent)
+
+Ersetze die gesamte Funktion durch:
+
+/** PMT-basierte maximale Entnahme – median-konsistent */
+function calculateMaximumWithdrawal(
+  startingCapital: number,
+  months: number,
+  inflationAdjusted: boolean, // ungenutzt – Entnahme ist immer nominal konstant
+  portfolio: Strategy
+): number {
+  const { net, sigma } = getAnnualParamsForStrategy(portfolio);
+
+  // annual sigma (p.a.)
+  const sigma_annual = sigma;
+
+  // Median-konsistente monatliche Log-Drift:
+  // 12*m + 0.5*sigma_annual^2 = ln(1+net)
+  const m_month = (Math.log(1 + net) - 0.5 * sigma_annual * sigma_annual) / 12;
+  const r_med_month = Math.exp(m_month) - 1; // Median-Monatsrendite
+
+  // PMT mit dieser Monatsrendite
+  return startingCapital * r_med_month / (1 - Math.pow(1 + r_med_month, -months));
+}
+
+
+Hintergrund: Die Simulation nutzt lognormale Returns. Die median-konsistente Monatsrendite stellt sicher, dass der Medianpfad die PMT bis zum Endalter trägt.
+
+1.2 generateWithdrawalTimeline – Drift korrekt & Entnahme konstant nominal
+
+Suche in generateWithdrawalTimeline(...) den Block, in dem mu_log_m/sigma_m gesetzt werden, und ersetze ihn durch:
+
+  const { net, sigma } = getAnnualParamsForStrategy(portfolio);
+  const sigma_annual = sigma;
+  const stepsPerYear = 12;
+
+  // Korrektes Mapping: effektive Jahresrendite -> monatliche Log-Drift
+  // 12*m + 0.5*sigma_annual^2 = ln(1+net)
+  const mu_log_m = (Math.log(1 + net) - 0.5 * sigma_annual * sigma_annual) / stepsPerYear;
+  const sigma_m  = sigma_annual / Math.sqrt(stepsPerYear);
+
+
+Stelle sicher, dass die Entnahme je Monat konstant nominal ist (kein Inflationsfaktor):
+
+  // Monats-Entnahme in diesem Jahr (immer konstant nominal)
+  const monthlyDraw = monthlyWithdrawal;
+
+1.3 withdrawn (kumulierte Entnahme) nicht mit Inflation hochrechnen
+
+In der Jahres-Schleife am Ende:
+
+  // kumulierte Entnahme (nur Anzeige) – IMMER konstant nominal
+  const annualDraw = monthlyWithdrawal * 12;
+  cumWithdrawn += annualDraw;
+
+
+Entferne die bisherige inflationierte Variante.
+
+2) client/src/lib/monte-carlo.worker.ts
+
+Drift in der MC-Simulation korrigieren, damit Worker-Ergebnis und Entnahme-Timeline konsistent sind.
+
+Finde:
+
+const sigma_annual = params.volatility * Math.sqrt(12);
+const net_annual   = Math.pow(1 + params.monthlyReturn, 12) - 1;
+
+const stepsPerYear = 12;
+const mu_log_m = (mu_net_annual - 0.5 * sigma_annual * sigma_annual) / stepsPerYear;
+const sigma_m  = sigma_annual / Math.sqrt(stepsPerYear);
+
+
+Ersetze durch:
+
+const sigma_annual = params.volatility * Math.sqrt(12); // annual sigma
+const net_annual   = Math.pow(1 + params.monthlyReturn, 12) - 1; // effektive Jahresrendite (netto)
+
+const stepsPerYear = 12;
+// Korrekt: 12*m + 0.5*sigma_annual^2 = ln(1+net_annual)
+const mu_log_m = (Math.log(1 + net_annual) - 0.5 * sigma_annual * sigma_annual) / stepsPerYear;
+const sigma_m  = sigma_annual / Math.sqrt(stepsPerYear);
+
+3) UI-Hinweis in client/src/components/withdrawal-planning.tsx
+
+Der Text erwähnt derzeit eine jährliche Erhöhung um 2,5 % – das trifft nach der Umstellung nicht mehr zu. Bitte ersetzen:
+
+{inputs.inflationAdjusted && (
+  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+    <p className="text-sm text-blue-800">
+      <strong>Hinweis:</strong> Die angezeigten Entnahmebeträge sind auf heutige Kaufkraft umgerechnet
+      (Abzinsung mit ca. 2,5% p.a. über die Ansparzeit). Die Entnahme selbst bleibt nominal konstant.
+    </p>
+  </div>
+)}
+
+4) Validierung (kurzer Check)
+
+Schritt A: Rechne einen typischen Case (z. B. Startkapital 515.000 €, Entnahme 25→90).
+Erwartung: Median-Linie im Entnahme-Chart fällt erst im Endjahr auf ≈ 0 €.
+
+Schritt B: Reduziere testweise die Volatilität (z. B. σ=0), dann muss die PMT exakt dem deterministischen Ergebnis entsprechen.
+
+Schritt C: Erhöhe σ → PMT bleibt gleich (nominal konstant), aber die Median-Kurve kann minimal von 0 abweichen (numerische Toleranz ≤ wenige Euro).
+
+Falls punktgenaues „0 €“ gewünscht wird, kann optional ein kurzer Bisection-Solver (10–15 Iterationen) die PMT auf MedianEnd≈0 feinjustieren. Ich liefere bei Bedarf gern den Zusatz.
+
+Wichtig: Keine weiteren Logiken ändern. Inflationsbereinigte Anzeige der Entnahme (heutige Kaufkraft) bleibt unverändert: Der nominale Monatsbetrag wird nur für die Anzeige über die Ansparjahre (Zielalter − aktuelles Alter) mit 2,5 % p. a. abgezinst.

@@ -1,0 +1,121 @@
+Bitte verbessere den PDF-Export in `client/src/lib/pdf-export.ts` gezielt an folgenden Stellen.
+
+Ziel:
+Das PDF-Layout soll sauber umbrechen, keine Überlappungen haben, die Charts korrekt skaliert darstellen und die Kontaktdaten überall konsistent auf `office@feelfinance.at` ändern.
+
+================================
+1) Seite 1: Überlappungen beheben
+================================
+Problem A:
+Im Bereich "Ihre Eingaben" ist die Zeile
+- Anlagestrategie
+- Inflationsbereinigt
+zu eng. Der Text "Ausgewogen (5% p.a.)" bzw. "Dynamisch (7% p.a.)" läuft in das rechte Feld hinein.
+
+Fix:
+- Für die Eingaben auf Seite 1 kein starres 2-Spalten-Layout mit fixen x-Offsets mehr verwenden.
+- Verwende stattdessen ein robusteres Layout:
+  - linke Spalte Label bei `MARGIN`
+  - linker Wert bei `MARGIN + 42`
+  - rechte Spalte Label bei `MARGIN + 105`
+  - rechter Wert bei `MARGIN + 147`
+- Zusätzlich: lange Werte mit `doc.splitTextToSize(...)` umbrechen, statt sie einfach in eine Zeile zu schreiben.
+- Besonders die Zeile „Anlagestrategie“ muss umbrechen dürfen oder eine eigene Zeile bekommen.
+
+Empfehlung:
+- Mache für problematische Zeilen (Anlagestrategie / Inflationsbereinigt) lieber 2 Zeilen statt harter 2-Spalten-Zwänge.
+- Alternativ: wenn Textbreite zu groß wird, rechte Spalte automatisch in die nächste Zeile schieben.
+
+Problem B:
+Der graue Hintergrund von "Zusammenfassung" bzw. der Bereich darunter überlappt mit "Entnahmeplanung – Überblick".
+
+Fix:
+- Vor dem Zeichnen des grauen Summary-Blocks und vor dem Abschnitt "Entnahmeplanung – Überblick" die tatsächliche Höhe sauber berechnen.
+- Füge einen Mindestabstand zwischen Summary und Entnahmeplanung hinzu (z. B. +8 mm).
+- Vor "Entnahmeplanung – Überblick" prüfen:
+  - wenn `y + benötigteHöhe > contentBottom`, dann neue Seite beginnen
+  - sonst mit sauberem Abstand weiter.
+- Keine Section darf in einen vorherigen Hintergrundblock hineinragen.
+
+================================
+2) Seite 2: Vermögensentwicklung Chart korrigieren
+================================
+Problem:
+Die Vermögensentwicklung wird zu groß gedruckt und die Legende erscheint doppelt:
+- einmal aus dem Screenshot/Chart selbst
+- einmal zusätzlich durch `addChartLegend(...)`
+
+Ziel:
+So wie auf Seite 3 soll nur der Chart plus eine einzige Legende sichtbar sein.
+Die untere PDF-Legende reicht. Die im Screenshot enthaltene Legende soll entfernt werden.
+
+Fix:
+- Beim Export der Vermögensgrafik nicht den gesamten Chart-Container mit interner Recharts-Legende erfassen.
+- Stattdessen nur den eigentlichen Plot-Bereich rendern oder vor dem `html2canvas` die interne Legende im DOM für den Export temporär ausblenden.
+- Danach nur die PDF-Legende via `addChartLegend(...)` unterhalb des Charts verwenden.
+
+Konkrete Umsetzung:
+- Prüfe, ob `wealthChartRef` aktuell auf den kompletten Chart-Container zeigt.
+- Falls ja, erstelle für den Export entweder:
+  1. einen separaten Ref nur auf den eigentlichen Chart ohne UI-Legende
+  ODER
+  2. blende vor `html2canvas` alle Legendenelemente im Wealth-Chart per CSS/DOM temporär aus und stelle sie danach wieder her.
+- Reduziere zusätzlich die maximale Höhe des Vermögenscharts:
+  - Seite 2 soll mehr White Space haben
+  - Chart etwas kleiner rendern
+- Verringere `maxChartH` auf Seite 2, sodass der Chart optisch ähnlich proportioniert ist wie auf Seite 3.
+
+Zum Beispiel:
+- statt `const maxChartH = contentBottom - y2 - 14;`
+- verwende etwas konservativeres wie:
+  `const maxChartH = 115;`
+  oder eine ähnliche feste Höhe, die auf A4 gut aussieht.
+
+================================
+3) Seite 3: Kontakttext ändern
+================================
+Im Hinweistext ändern:
+Von:
+`Für eine individuelle Beratung wenden Sie sich gerne an uns: beratung.feelfinance.at`
+
+Zu:
+`Für eine individuelle Beratung wenden Sie sich gerne an uns: office@feelfinance.at`
+
+Also in `addDisclaimer(...)` bitte den letzten Satz anpassen.
+
+================================
+4) Fußzeile ändern
+================================
+In `addFooter(...)` die rechte Fußzeile ändern:
+Von:
+`beratung.feelfinance.at`
+
+Zu:
+`office@feelfinance.at`
+
+================================
+5) Text- und Währungsformat konsistent halten
+================================
+- Behalte das bisherige Layout grundsätzlich bei.
+- Währungsbeträge weiterhin konsistent formatieren.
+- Achte darauf, dass es keine abgeschnittenen Texte oder Überlappungen mehr gibt.
+
+================================
+6) Akzeptanzkriterien
+================================
+- Seite 1:
+  - kein Überlappen mehr bei „Anlagestrategie“ und „Inflationsbereinigt“
+  - kein Überlappen des grauen Summary-Hintergrunds mit „Entnahmeplanung – Überblick“
+- Seite 2:
+  - Chart kleiner und sauber proportioniert
+  - Legende nur einmal sichtbar
+- Seite 3:
+  - Hinweistext enthält `office@feelfinance.at`
+- Fußzeile auf allen Seiten:
+  - rechts steht `office@feelfinance.at`
+- Keine abgeschnittenen oder ineinander laufenden Elemente mehr
+
+Bitte ändere nur die PDF-Export-Logik und gib mir danach kurz an:
+- welche Funktionen du angepasst hast
+- wie du das Legendenproblem gelöst hast
+- wie du die Überlappungen auf Seite 1 verhindert hast

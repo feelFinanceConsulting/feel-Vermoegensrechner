@@ -1,0 +1,126 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Gilroy",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#2563EB",
+    "accent": "#EC662B",
+    "background": "#FFFFFF",
+    "textPrimary": "#EC662B",
+    "link": "#EC662B"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Gilroy",
+      "heading": "Gilroy"
+    },
+    "fontStacks": {
+      "heading": [
+        "Gilroy",
+        "sans-serif"
+      ],
+      "body": [
+        "Gilroy",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Gilroy",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "55px",
+      "h2": "20px",
+      "body": "60px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "3px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#EC662B",
+      "textColor": "#333333",
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#2563EB",
+      "textColor": "#FFFFFF",
+      "borderRadius": "4px",
+      "borderRadiusCorners": {
+        "topLeft": "4px",
+        "topRight": "4px",
+        "bottomRight": "4px",
+        "bottomLeft": "4px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "https://feelfinance.at/wp-content/uploads/2024/10/feelFinance-Logo.png",
+    "favicon": "https://feelfinance.at/wp-content/uploads/2024/10/Logo-150x150.png",
+    "ogImage": "https://feelfinance.at/wp-content/uploads/2024/10/feel-Grafik.png",
+    "logoHref": "https://feelfinance.at"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the favicon, making it the primary brand logo for Feel Finance.",
+    "confidence": 0.9,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "JETZT KONTAKT AUFNEHMEN",
+      "reasoning": "Button #0 with text 'JETZT KONTAKT AUFNEHMEN' uses the vibrant brand color #EC662B, making it a strong candidate for the primary CTA due to its action-oriented text and prominent color."
+    },
+    "secondary": {
+      "index": 2,
+      "text": "Einwilligung speichern",
+      "reasoning": "Button #2 with text 'Einwilligung speichern' uses a different vibrant color #2563EB, making it suitable as a secondary CTA due to its distinct color group and supportive action."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "financial services clients"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the favicon, making it the primary brand logo for Feel Finance.",
+        "confidence": 0.9
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}

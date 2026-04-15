@@ -1,0 +1,111 @@
+Bitte optimiere die Anwendung für Mobilgeräte (alle Handys). Die Desktop-Version soll dabei unverändert gut bleiben.
+
+Ziel:
+Die App soll auf Mobilgeräten sauber, ohne horizontales Scrollen und mit gut bedienbaren Charts und Buttons funktionieren. Die meisten Eingabefelder und Kacheln passen bereits gut, daher bitte nur gezielt die problematischen Stellen verbessern.
+
+================================
+1) Kein horizontales Scrollen auf Mobilgeräten
+================================
+- Stelle sicher, dass auf mobilen Screens kein horizontales Scrollen mehr möglich ist.
+- Prüfe alle Hauptcontainer, Charts und Button-Bereiche auf zu große Breiten.
+- Verhindere Overflow-X auf mobilen Breakpoints.
+- Falls nötig:
+  - `overflow-x-hidden` auf übergeordneten Layout-Containern setzen
+  - Breiten auf `w-full`, `max-w-full`, `min-w-0` prüfen
+  - Chart-/Card-Container so anpassen, dass sie innerhalb des Viewports bleiben
+
+Akzeptanzkriterium:
+- Auf Mobilgeräten darf man nicht seitlich scrollen.
+
+================================
+2) Problem-Button: „Vermögenszufluss hinzufügen“
+================================
+- Der Button zum Hinzufügen von Vermögenszuflüssen ist mobil aktuell nicht gut sichtbar / nicht sauber positioniert.
+- Bitte diesen Button mobil optimieren:
+  - volle Breite oder saubere responsive Breite
+  - genug Abstand zu umliegenden Elementen
+  - keine abgeschnittene Darstellung
+  - Text darf nicht umbrechen oder aus dem Button herauslaufen
+- Falls nötig auf Mobile:
+  - kleinere Schrift
+  - mehr Padding links/rechts
+  - Umstellung auf `w-full`
+  - Button unterhalb statt neben anderen Elementen
+
+Akzeptanzkriterium:
+- Der Button „Vermögenszufluss hinzufügen“ ist auf allen Handys klar sichtbar und gut klickbar.
+
+================================
+3) Problem-Button: „Jetzt Beratung buchen“
+================================
+- Der Button unter den Charts für „Jetzt Beratung buchen“ ist mobil ebenfalls nicht optimal sichtbar.
+- Bitte auf Mobile verbessern:
+  - klare volle Breite oder saubere responsive Breite
+  - genügend Abstand zum Chart und anderen Buttons
+  - keine abgeschnittene Darstellung
+  - ausreichend große Touch-Fläche
+- Falls mehrere Buttons nebeneinander stehen:
+  - mobil untereinander statt nebeneinander darstellen
+
+Akzeptanzkriterium:
+- Der Button „Jetzt Beratung buchen“ ist mobil immer vollständig sichtbar und leicht klickbar.
+
+================================
+4) Charts in mobiler Ansicht etwas größer machen
+================================
+- Die Charts sind mobil aktuell etwas zu klein.
+- Bitte die mobile Darstellung der Charts verbessern:
+  - etwas mehr Höhe auf Mobilgeräten
+  - bessere Lesbarkeit der Kurven
+  - Achsen und Tooltip sollen weiterhin sichtbar bleiben
+- Die Charts sollen auf Mobile größer wirken, ohne horizontales Scrollen zu erzeugen.
+- Ggf. mobil:
+  - Chart-Höhe erhöhen
+  - Außenabstände leicht reduzieren, damit mehr Platz für die Grafik bleibt
+  - Legenden sauber umbrechen / untereinander darstellen
+
+Akzeptanzkriterium:
+- Beide Charts sind mobil spürbar besser lesbar, ohne abgeschnitten zu werden.
+
+================================
+5) Alles andere möglichst beibehalten
+================================
+- Eingabefelder passen aktuell schon gut → bitte nicht unnötig umbauen
+- Kacheln passen aktuell schon gut → bitte unverändert lassen
+- Alle Inhalte sollen mobil weiterhin sichtbar bleiben
+- Keine wichtigen Bereiche ausblenden oder einklappen, wenn nicht unbedingt nötig
+
+================================
+6) Technische Vorgaben
+================================
+- Bitte responsiv mit den bestehenden Styles / Tailwind-Klassen lösen
+- Fokus auf Mobile-Breakpoints
+- Desktop-Layout nicht verschlechtern
+- Keine horizontale Scrollbar auf Handy
+- Buttons touchfreundlich gestalten
+- Charts mobil etwas größer machen
+
+================================
+7) Bitte besonders folgende Komponenten prüfen
+================================
+Falls vorhanden, bitte vor allem die mobilen Styles in diesen Bereichen prüfen und anpassen:
+- Haupt-Calculator / Hauptseite
+- Bereich mit Vermögenszuflüssen
+- Calculation Results
+- Withdrawal Planning
+- Bereich unter den Charts mit Action Buttons
+
+================================
+8) Acceptance Criteria
+================================
+- Kein horizontales Scrollen auf Mobil
+- Button „Vermögenszufluss hinzufügen“ vollständig sichtbar
+- Button „Jetzt Beratung buchen“ vollständig sichtbar
+- Charts mobil größer und besser lesbar
+- Eingabefelder und Kacheln bleiben wie bisher gut nutzbar
+- Desktop-Version bleibt intakt
+
+Bitte gib mir danach kurz an:
+- welche Dateien du geändert hast
+- welche Klassen / Layout-Änderungen du für Mobile angepasst hast
+- wie du das horizontale Scrollen verhindert hast

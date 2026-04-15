@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(0, 0%, 0%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(0, 0%, 0%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(0, 0%, 0%);
+  --primary: hsl(21, 79%, 61%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(49, 92%, 76%);
+  --secondary-foreground: hsl(0, 0%, 0%);
+  --muted: hsl(0, 0%, 96%);
+  --muted-foreground: hsl(221, 8%, 42%);
+  --accent: hsl(21, 79%, 61%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(220, 13%, 91%);
+  --input: hsl(220, 13%, 91%);
+  --ring: hsl(21, 79%, 61%);
+  --chart-1: hsl(21, 79%, 61%);
+  --chart-2: hsl(52, 100%, 49%);
+  --chart-3: hsl(0, 84%, 60%);
+  --chart-4: hsl(49, 92%, 76%);
+  --chart-5: hsl(262, 83%, 58%);
+  --ff-primary: hsl(21, 79%, 61%);
+  --ff-secondary: hsl(49, 92%, 76%);
+  --ff-gray: hsl(210, 9%, 50%);
+  --ff-light: hsl(210, 17%, 97%);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: hsl(0, 0%, 0%);
+  --foreground: hsl(0, 0%, 100%);
+  --card: hsl(0, 0%, 7%);
+  --card-foreground: hsl(0, 0%, 100%);
+  --popover: hsl(0, 0%, 7%);
+  --popover-foreground: hsl(0, 0%, 100%);
+  --primary: hsl(21, 79%, 61%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(49, 92%, 76%);
+  --secondary-foreground: hsl(0, 0%, 0%);
+  --muted: hsl(0, 0%, 15%);
+  --muted-foreground: hsl(210, 9%, 50%);
+  --accent: hsl(21, 79%, 61%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(0, 0%, 15%);
+  --input: hsl(0, 0%, 15%);
+  --ring: hsl(21, 79%, 61%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'system-ui', sans-serif;
+  }
+
+  .font-gilroy {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'system-ui', sans-serif;
+  }
+}
+
+@layer base {
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  .design-variant {
+    --background: #FCFAEE;
+    background-color: #FCFAEE;
+  }
+
+  .design-variant-seamless {
+    --background: #FCFAEE;
+    --card: #FCFAEE;
+    background-color: #FCFAEE;
+  }
+
+  .ff-primary {
+    @apply bg-[var(--ff-primary)] text-white;
+  }
+  
+  .ff-secondary {
+    @apply bg-[var(--ff-secondary)] text-gray-900;
+  }
+  
+  .ff-gray {
+    @apply text-[var(--ff-gray)];
+  }
+  
+  .ff-light {
+    @apply bg-[var(--ff-light)];
+  }
+}

@@ -1,0 +1,15 @@
+Ich möchte ganz unten einen neuen Container hinzufügen für FAQs. Durch Klick auf die einzelnen Fragen sollten sich die dazugehörigen Fragen öffnen und wenn ich eine andere Frage anklicke, soll sich die alte schließen und die neue öffnen.
+Überschrift: „Die häufigsten Fragen“
+-Was bedeuten die Anlagestrategien „ausgewogen“ und „dynamisch“? Diese beiden Strategien repräsentieren die angestrebte Rendite der beiden Fonds „der Vermögensverwalter“ (Link einfügen: https://dervermoegensverwalter.at/all-weather/)  und „der Vermögensverwalter dynamisch“ (Link einfügen: https://dervermoegensverwalter.at/dynamisch/). 
+Die beiden Fonds zielen auf verschiedene Chancen-/Risikoprofile von Investoren ab. Jeder Mensch würde natürlich am liebsten möglichst hohe Renditen erzielen. Doch Menschen haben unterschiedliche Toleranz dafür, wenn es darum geht, wie viel Risiko sie mit ihrem Geld eingehen möchten. Buche gerne eine Beratung bei uns (Link einfügen: https://beratung.feelfinance.at/meetings/anton-maresch) um dein passendes Profil herauszufinden.
+-Wird Inflation im Rechner berücksichtigt? Ja du hast die Möglichkeit die Option „inflationsbereiningt“ anzuhaken wodurch die Inflation in den Ergebnissen berücksichtigt wird. Details dazu findest du in den angezeigten Hinweisfeldern unter den Berechnungen
+-Werden Steuern im Rechner berücksichtigt? Nein die Kapitalertragssteuer, welche auf Erträge aus Kapitalvermögen (zB Zinsen, Gewinne aus Aktienverkäufen) fällig wäre, ist nicht berücksichtigt. 
+-Sind Gebühren im Rechner bereits abgezogen? Ja es werden 0,99% Produktkosten berücksichtigt, wodurch die Rendite der verschiedenen Szenarien reduziert wird. Details zu den Berechnungsmethoden findest du im Info Fenster (Info-i) rechts neben den Graphen. Die Produktkosten in Höhe von 0,99% entsprechen den Kosten (TER = Total Expense Ratio) der beiden Fonds „der Vermögensverwalter“ (Link einfügen: https://dervermoegensverwalter.at/all-weather/)  und „der Vermögensverwalter dynamisch“ (Link einfügen: https://dervermoegensverwalter.at/dynamisch/).
+-Wie verlässlich ist der Rechner? Die angezeigten Linien zeigen verschiedene Szenarien. Die tatsächliche Performance und die tatsächlich möglichen Entnahmen können erheblich von den Ergebnissen des Rechners abweichen. Die genauen Berechnungsmethoden der einzelnen Szenarien findest du im Infofenster (Info-i) rechts oben bei den Graphen.
+Die Daten im Rechner basieren auf konservativen repräsentativen Indexdaten der letzten 50 Jahre, nach Abzug einer Gebühr iHv. 0,99% aber exkl. KESt. 
+Bitte beachte, dass es zu Kursschwankungen kommen kann, die im Rechner nicht sichtbar sind.
+Beachte: Die Wertentwicklung in der Vergangenheit ist keine Garantie für die zukünftige Wertentwicklung. Die tatsächliche Rendite kann erheblich von den Schätzungen abweichen.
+
+
+Generell wichtig:
+Ändere keine Berechnungen oder keine Texte, wenn es nicht ausdrücklich befohlen wurde.

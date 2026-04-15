@@ -1,0 +1,134 @@
+Bitte behebe die Berechnung der p.a.-Rendite im Textfeld unter „Worst Case“.
+
+Problem
+
+Die aktuell angezeigte p.a.-Rendite unter der Worst-Case-Kachel ist fachlich falsch, sobald zusätzliche Ein- oder Auszahlungen vorkommen.
+
+Aktuell wird offenbar nur vereinfacht mit:
+
+Startwert / Endwert
+und teilweise monatlichen Einzahlungen
+
+gerechnet.
+
+Dadurch entstehen falsche Renditen, wenn:
+
+Auszahlungen / Ziele gemacht wurden
+→ Das Portfolio kann trotz positiver Entwicklung eine viel zu niedrige Rendite anzeigen.
+spätere Einzahlungen / Zuflüsse gemacht wurden
+→ Der Endwert steigt zwar, aber die zusätzliche Einzahlung wird nicht korrekt als Cashflow berücksichtigt.
+Ziel
+
+Die p.a.-Rendite unter „Worst Case“ soll immer auf Basis aller tatsächlichen Cashflows berechnet werden.
+
+Das heißt:
+
+Einmalbetrag = negativer Cashflow am Anfang
+Monatliche Sparraten = negative Cashflows in den jeweiligen Monaten
+spätere Einzahlungen / Zuflüsse = negative oder positive Cashflows zum jeweiligen Zeitpunkt korrekt berücksichtigen
+Auszahlungen / Ziele = ebenfalls als Cashflows berücksichtigen
+Worst-Case-Endwert = positiver Cashflow am Ende
+
+Die angezeigte Rendite soll also als IRR / XIRR aus allen Cashflows berechnet werden, nicht als einfache CAGR.
+
+Konkrete Anforderungen
+1) Cashflow-basierte Renditeberechnung einführen
+
+Bitte ersetze die bisherige Worst-Case-Renditeberechnung durch eine Funktion, die mit allen Cashflows arbeitet.
+
+Die Funktion soll:
+
+alle monatlichen Cashflows sammeln
+Einzahlungen als negative Cashflows modellieren
+Auszahlungen/Ziele als positive Cashflows modellieren
+Kapitalzuflüsse korrekt je nach Fachlogik berücksichtigen
+am Ende den Worst-Case-Endwert als positiven End-Cashflow hinzufügen
+daraus eine monatliche IRR berechnen
+und diese dann auf p.a. annualisieren:
+annualIrr = Math.pow(1 + monthlyIrr, 12) - 1;
+2) Folgende Cashflows müssen berücksichtigt werden
+a) Anfangsinvestition
+oneTimeAmount am Startzeitpunkt
+als negativer Cashflow
+b) Monatliche Sparrate
+für jeden Monat ein negativer Cashflow
+inklusive jährlicher Erhöhung, falls vorhanden
+c) Finanzielle Ziele / Auszahlungen
+wenn ein Ziel in einem bestimmten Jahr stattfindet, muss es als zusätzlicher Cashflow berücksichtigt werden
+fachlich korrekt:
+wenn aus dem Portfolio Geld entnommen wird, ist das aus Investorensicht ein positiver Cashflow
+also z. B. Hochzeit 30.000 € in Jahr 5 = positiver Cashflow im entsprechenden Monat/Jahr
+d) Kapitalzuflüsse / spätere Einzahlungen
+wenn z. B. eine Erbschaft, Versicherung oder Immobilienverkauf in einem späteren Jahr zufließt, muss das als zusätzlicher Cashflow berücksichtigt werden
+je nach Sichtweise:
+wenn es zusätzlicher externer Kapitaleinsatz des/der Nutzer:in ist → negativer Cashflow
+wenn es ein externer Rückfluss an den/die Nutzer:in ist → positiver Cashflow
+bitte die bestehende fachliche Logik der App prüfen und konsistent abbilden
+wichtig ist vor allem: dieser Betrag darf nicht einfach nur den Endwert erhöhen, sondern muss als zeitlich korrekter Cashflow in die Rendite eingehen
+e) Endwert
+der Worst-Case-Endwert am Zielalter ist der letzte positive Cashflow
+3) Bestehende Anzeige beibehalten
+
+Bitte ändere nur die Logik der Renditeberechnung unter „Worst Case“.
+
+Die restliche Anzeige soll gleich bleiben:
+
+Text bleibt:
+entspricht ca. x% p.a.
+nur der berechnete Wert soll nun korrekt sein
+4) Robuste IRR-Funktion verwenden
+
+Falls bereits eine Funktion wie irrMonthlyBisection(...) existiert, nutze sie weiter.
+
+Falls nicht oder falls sie zu ungenau ist:
+
+bitte eine robuste monatliche IRR-Funktion implementieren
+mit Bisection oder Newton-Raphson + Fallback
+keine NaN-/Infinity-Werte zulassen
+bei fehlender Konvergenz fallback auf null oder „–“
+5) Bitte nicht mehr einfache CAGR verwenden, wenn Cashflows vorhanden sind
+
+Wichtig:
+
+Eine CAGR darf nur verwendet werden, wenn es wirklich nur eine Anfangsinvestition und einen Endwert gibt
+Sobald weitere Cashflows existieren, muss IRR verwendet werden
+Konkrete Erwartung
+Beispiel 1:
+Start: 100.000 €
+40 Jahre Laufzeit
+später 30.000 € Auszahlung
+Endwert bleibt positiv
+
+Dann darf die Rendite nicht einfach nur mit Start- und Endwert berechnet werden.
+
+Beispiel 2:
+Start: 100.000 €
+später zusätzliche Einzahlung
+Endwert steigt dadurch
+
+Dann darf die p.a.-Rendite nicht künstlich zu hoch werden, nur weil der Endwert höher ist.
+
+Bitte prüfen / anpassen in
+
+Wahrscheinlich betroffen:
+
+client/src/components/calculation-results.tsx
+ggf. eine Hilfsfunktion für IRR/Cashflows
+falls sinnvoll auch financial-calculations.ts
+Acceptance Criteria
+Die Worst-Case-Rendite berücksichtigt:
+Einmalbetrag
+monatliche Sparraten
+jährliche Erhöhung
+finanzielle Ziele / Auszahlungen
+Kapitalzuflüsse / spätere Einzahlungen
+Endwert
+Die p.a.-Rendite ist fachlich plausibel
+Bei zusätzlichen Einzahlungen sinkt die Rendite entsprechend, wenn der höhere Endwert nur durch mehr Einzahlung entstanden ist
+Bei Entnahmen/Zielen bleibt die Rendite korrekt und wird nicht künstlich verzerrt
+Keine Regression in der restlichen UI
+Bitte gib mir danach kurz zurück
+welche Dateien du geändert hast
+welche Cashflows du wie interpretiert hast
+ob du IRR oder XIRR verwendet hast
+welche Fälle du als Sonderfall behandelt hast

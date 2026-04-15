@@ -1,0 +1,66 @@
+Du bist in einem React/TypeScript Finanzrechner. Bitte behebe folgende zwei Probleme in der Entnahmeplanung und sorge für konsistente, gekoppelte Altersfelder zwischen Ansparphase und Entnahmephase.
+
+========================
+1) BUG: Entnahme-Endalter ändert Graph, aber nicht die monatliche Entnahme (Maximum)
+========================
+Ist-Zustand:
+Wenn ich in der Entnahmeplanung das Entnahme-Endalter ändere, aktualisiert sich der Graph (Timeline), aber der Wert "monatliche Entnahme" (bei Strategie "Maximum") bleibt gleich. Das ist falsch: wenn ich die Entnahmedauer verkürze, muss die mögliche monatliche Entnahme steigen; wenn ich verlängere, muss sie sinken.
+
+Soll-Zustand:
+- Bei Strategie "maximum" muss monthlyAmount IMMER neu berechnet werden, sobald startAge oder endAge geändert wird.
+- Die Berechnung soll so funktionieren, dass im Median-Szenario das Restkapital am Entnahme-Endalter ~0 ist (in der nominalen Timeline).
+- Beispiel: Wenn Endalter = 85, soll der Median im Alter 85 (bzw. am Ende der Timeline) ca. 0€ sein (numerisch kann es minimal abweichen, aber nicht Jahre früher auf 0 gehen).
+
+Umsetzung (konkret):
+A) Stelle sicher, dass calculateWithdrawal(...) in client/src/lib/financial-calculations.ts bei strategy="maximum" monthlyAmount NEU berechnet, basierend auf:
+- startingCapital (Kapital zum Entnahmebeginn)
+- months = (endAge - startAge) * 12
+- Portfolio-Netto-Rendite (wie bisher)
+=> Nutze dafür eine robuste Funktion calculateMaximumWithdrawal(startingCapital, months, portfolio)
+B) Stelle sicher, dass diese calculateWithdrawal(...) Funktion auch wirklich erneut aufgerufen wird, wenn startAge/endAge geändert werden.
+- In der UI (withdrawal-planning.tsx) darf sich NICHT nur die Timeline ändern, sondern es muss die parent calculation neu laufen, damit result.monthlyAmount aktualisiert wird.
+- Falls aktuell nur die Timeline neu generiert wird: ändere die Logik so, dass onStrategyChange(strategy,startAge,endAge) die vollständige Neuberechnung triggert und result (inkl. monthlyAmount) neu vom Parent kommt.
+
+Akzeptanzkriterien:
+- Startkapital konstant lassen, Strategie "maximum":
+  - Endalter runter (z.B. 90 -> 85) => monthlyAmount steigt sichtbar.
+  - Endalter rauf (z.B. 90 -> 100) => monthlyAmount sinkt sichtbar.
+- Im Ergebnis ist der Median-Kapitalwert am Endalter in der Timeline nahe 0 (nicht Jahre vorher).
+
+========================
+2) Feature: Entnahme-Startalter und Zielalter müssen gekoppelt sein (bidirektional)
+========================
+Ist-Zustand:
+Zielalter (Ansparphase) und Entnahme-Startalter sind getrennt und laufen auseinander.
+
+Soll-Zustand (bidirektional):
+- Wenn ich Zielalter ändere, muss Entnahme-Startalter automatisch auf denselben Wert gesetzt werden.
+  Beispiel: Zielalter 64 => Entnahme-Startalter 64.
+- Wenn ich Entnahme-Startalter ändere, muss Zielalter automatisch auf denselben Wert gesetzt werden.
+  Beispiel: Entnahme-Startalter 60 => Zielalter 60.
+
+WICHTIG:
+- Das soll ohne Endlosschleifen passieren.
+- Es soll nur gekoppelt werden, wenn der User tatsächlich einen Wert ändert (onChange/onBlur), nicht bei jeder Re-Render-Kette.
+- Wenn es Validierungen gibt (min/max), sollen beide Felder konsistent korrigiert werden.
+
+Umsetzungsvorschlag:
+- Führe eine zentrale State-Quelle für dieses Alter ein (z.B. retirementAge), die sowohl targetAge (Ansparphase) als auch withdrawal startAge spiegelt.
+ODER
+- Baue zwei Handler:
+  - onTargetAgeChange(newAge) { setTargetAge(newAge); setWithdrawalStartAge(newAge); markDirtySavings/Withdrawal; }
+  - onWithdrawalStartAgeChange(newAge) { setWithdrawalStartAge(newAge); setTargetAge(newAge); markDirtySavings/Withdrawal; }
+- Achte darauf, dass die Neuberechnung dann mit den aktuellen Werten passiert (und nicht mit Defaults).
+
+Akzeptanzkriterien:
+- Änderung Zielalter aktualisiert sofort Entnahme-Startalter.
+- Änderung Entnahme-Startalter aktualisiert sofort Zielalter.
+- Keine Loops / kein Zurückspringen auf alte Werte.
+- Nach "Neu berechnen" (oder automatisch, je nach eurer Logik) wird mit den gekoppelten Werten gerechnet.
+
+========================
+Abschluss
+========================
+- Bitte nenne mir alle geänderten Dateien.
+- Erkläre kurz, warum monthlyAmount vorher nicht aktualisiert wurde (z.B. Recalc-Trigger nur für Timeline, nicht für Ergebnis).
+- Stelle sicher, dass Typescript ohne Fehler kompiliert.

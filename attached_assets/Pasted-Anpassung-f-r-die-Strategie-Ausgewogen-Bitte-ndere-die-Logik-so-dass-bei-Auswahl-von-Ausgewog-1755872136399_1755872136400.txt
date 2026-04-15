@@ -1,0 +1,29 @@
+Anpassung für die Strategie „Ausgewogen“:
+Bitte ändere die Logik so, dass bei Auswahl von „Ausgewogen“ die vier Linien wie folgt berechnet und angezeigt werden:
+1.	Optimistisches Szenario – arithmetische Berechnung mit 6 % p.a. brutto, nach TER 0,99 % → 5,01 % p.a. netto
+2.	Erwartetes Szenario – arithmetische Berechnung mit 5 % p.a. brutto, nach TER 0,99 % → 4,01 % p.a. netto
+3.	Worst Case (5. Perzentil) – Monte-Carlo mit 5 % p.a. brutto, nach TER 0,99 % → 4,01 % p.a. Netto-Drift, 5. Perzentil über Pfade
+4.	Eingezahlt – kumulierte Einzahlungen (Einmalbetrag + vorschüssige Monatsraten inkl. jährlicher Erhöhung, falls gesetzt), gestrichelt, unverzinst
+Details:
+•	Für die arithmetischen Linien (1 & 2) gilt:
+o	Jahreszins netto (nach TER) in Monatszins umrechnen:
+rm=(1+r_pa_net)1/12−1r_m = (1 + r\_{pa\_net})^{1/12} - 1 
+o	Vermögensentwicklung = Einmalbetrag verzinsen + vorschüssige Monatsraten mit optionaler jährlicher Erhöhung.
+•	Für die Monte-Carlo-Linie (3) gilt:
+o	Brutto: 5 % p.a.
+o	Netto: 4,01 % p.a. (nach TER) als Drift
+o	Volatilität: bestehende App-Einstellung übernehmen (falls nicht gesetzt: Standard 10–12 % p.a. für ausgewogen).
+o	Monatsparameter:
+μlog⁡, mon=0,0401−0,5⋅σ212,σlog⁡, mon=σ12\mu_{\log,\,mon} = \frac{0{,}0401 - 0{,}5 \cdot \sigma^2}{12}, \quad \sigma_{\log,\,mon} = \frac{\sigma}{\sqrt{12}} 
+o	Anzahl Pfade: 2.000 (konfigurierbar).
+o	Worst-Case-Linie = 5. Perzentil pro Monat.
+•	Eingezahlt (Linie 4) bleibt wie gehabt unverzinst, gestrichelt.
+•	Legende & Reihenfolge wie zuvor:
+1.	Optimistisches Szenario
+2.	Erwartetes Szenario
+3.	Worst Case (5. Perzentil)
+4.	Eingezahlt
+Anpassungen UI/UX:
+Beim Ergebnis deiner Berechnungen in den 3 Kacheln benenne diese Kacheln bitte gleich wie im Chart. „Optimistisches Szenario“, „Erwartetes Szenario“ und „Worst Case (5. Perzentil)“
+Beachte bitte, dass die Zahl beim Ergebnis „Erwartetes Szenario“ nicht über die Kachel hinaus geht. Es soll immer zentriert innerhalb der Kachel Platz haben.
+Beachte bitte auch, dass der Wert für Worst Case (5. Perzentil) im letzten Jahr nicht auf 0€ geht. Das sollte nicht passieren.
