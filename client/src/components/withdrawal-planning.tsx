@@ -77,6 +77,71 @@ export default function WithdrawalPlanning({
     withdrawn: Math.round(point.withdrawn),
   }));
 
+  const maxBestCase = Math.max(...chartData.map(d => d.bestCase), 0);
+
+  function calcYTicks(maxValue: number): number[] {
+    if (maxValue <= 0) {
+      return [0, 10000, 20000, 30000, 40000, 50000];
+    }
+
+    // When max >= 1M, only use million-aligned steps so all labels are clean integers
+    const allowedSteps = maxValue >= 1000000
+      ? [1000000, 2000000, 5000000, 10000000]
+      : [10000, 20000, 50000, 100000, 200000, 500000];
+
+    // Find smallest step where floor(max/step) is in [2, 4] → yields 4–6 ticks (incl. 0)
+    let chosenStep: number | null = null;
+    for (const s of allowedSteps) {
+      const f = Math.floor(maxValue / s);
+      if (f >= 2 && f <= 4) {
+        chosenStep = s;
+        break;
+      }
+    }
+
+    if (chosenStep === null) {
+      const f0 = Math.floor(maxValue / allowedSteps[0]);
+      if (f0 < 2) {
+        // maxValue very small: use smallest step, pad to 4 ticks below
+        chosenStep = allowedSteps[0];
+      } else {
+        // maxValue very large: scale up largest step to fit within 4 intervals
+        const largest = allowedSteps[allowedSteps.length - 1];
+        chosenStep = Math.ceil(maxValue / 4 / largest) * largest;
+      }
+    }
+
+    // domainMax = first multiple of step strictly above maxValue
+    const domainMax = (Math.floor(maxValue / chosenStep) + 1) * chosenStep;
+    const tickCount = domainMax / chosenStep + 1;
+
+    const ticks: number[] = [];
+    for (let i = 0; i < tickCount; i++) {
+      ticks.push(i * chosenStep);
+    }
+
+    // Ensure minimum 4 ticks
+    while (ticks.length < 4) {
+      ticks.push(ticks[ticks.length - 1] + chosenStep);
+    }
+
+    return ticks;
+  }
+
+  function formatYAxis(value: number): string {
+    // Only show "X Mio." for exact integer multiples of 1M
+    if (value >= 1000000 && value % 1000000 === 0) {
+      return `${value / 1000000} Mio.`;
+    }
+    if (value >= 1000) {
+      return `${Math.round(value / 1000)}k €`;
+    }
+    return `${value} €`;
+  }
+
+  const yTicks = calcYTicks(maxBestCase);
+  const yDomainMax = yTicks[yTicks.length - 1];
+
   const displayStartAge = isNaN(startAge) ? '' : startAge;
   const displayEndAge = isNaN(endAge) ? '' : endAge;
   const effectiveEndAge = isNaN(endAge) ? 90 : endAge;
@@ -287,8 +352,10 @@ export default function WithdrawalPlanning({
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${formatNumber(value / 1000)}k€`}
-                      width={50}
+                      tickFormatter={formatYAxis}
+                      ticks={yTicks}
+                      domain={[0, yDomainMax]}
+                      width={65}
                     />
                     <Tooltip 
                       formatter={(value: number, name: string) => [

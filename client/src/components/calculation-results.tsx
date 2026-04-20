@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PercentilenInfoButton from "@/components/perzentilen-info-button";
@@ -20,6 +20,49 @@ import {
   Tooltip,
 } from "recharts";
 import { TrendingUp, RefreshCw } from "lucide-react";
+
+// ---- AutoFitCurrency: scales font size to prevent clipping ----
+function AutoFitCurrency({ value, className }: { value: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [fontSize, setFontSize] = useState(24);
+
+  const fit = useCallback(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) return;
+    const maxWidth = container.clientWidth - 12;
+    let size = 24;
+    text.style.fontSize = `${size}px`;
+    while (text.scrollWidth > maxWidth && size > 10) {
+      size -= 0.5;
+      text.style.fontSize = `${size}px`;
+    }
+    setFontSize(size);
+  }, []);
+
+  useLayoutEffect(() => {
+    fit();
+  }, [fit, value]);
+
+  useEffect(() => {
+    const ro = new ResizeObserver(fit);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, [fit]);
+
+  return (
+    <div ref={containerRef} className={`min-w-0 w-full px-2 overflow-visible flex justify-center`}>
+      <span
+        ref={textRef}
+        className={className}
+        style={{ fontSize: `${fontSize}px`, whiteSpace: "nowrap", display: "inline-block" }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 // ---- Hilfsfunktionen für p.a.-Ermittlung in der Worst-Case-Kachel ----
 
@@ -255,6 +298,43 @@ export default function CalculationResults({
 
   const chartData = calculateScenarios();
 
+  // --- Nice-number Y-axis ticks ---
+  const NICE_STEPS = [10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000];
+
+  function getNiceYAxisTicks(maxValue: number): { ticks: number[]; domainMax: number } {
+    if (maxValue <= 0) return { ticks: [0], domainMax: 0 };
+
+    for (const step of NICE_STEPS) {
+      if (Math.ceil(maxValue / step) > 5) continue;
+
+      const domainMax = Math.ceil(maxValue / step) * step;
+      const ticks: number[] = [];
+      for (let t = 0; t <= domainMax; t += step) ticks.push(t);
+
+      const millionLabels = ticks
+        .filter((t) => t >= 1_000_000)
+        .map((t) => Math.round(t / 1_000_000));
+      const hasDuplicateMillionLabels = millionLabels.length !== new Set(millionLabels).size;
+      if (!hasDuplicateMillionLabels) return { ticks, domainMax };
+    }
+
+    const fallbackStep = NICE_STEPS[NICE_STEPS.length - 1];
+    const domainMax = Math.ceil(maxValue / fallbackStep) * fallbackStep;
+    const ticks: number[] = [];
+    for (let t = 0; t <= domainMax; t += fallbackStep) ticks.push(t);
+    return { ticks, domainMax };
+  }
+
+  const maxOptimistic = chartData.length > 0 ? Math.max(...chartData.map((d) => d.optimistic ?? 0)) : 0;
+  const { ticks: yAxisTicks, domainMax: yAxisDomainMax } = getNiceYAxisTicks(maxOptimistic);
+
+  function formatYAxisLabel(value: number): string {
+    if (value >= 1000000) {
+      return `${Math.round(value / 1000000)} Mio.`;
+    }
+    return `${value.toLocaleString("de-DE")} €`;
+  }
+
   // Use expected scenario value for profit calculation and withdrawal planning
   const expectedEndValue =
     chartData[chartData.length - 1]?.expected || result.median;
@@ -464,38 +544,41 @@ export default function CalculationResults({
 
         {/* Key Results */}
         <div className="grid sm:grid-cols-3 gap-4 mb-8">
-          <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+          <div className="min-w-0 text-center p-4 bg-red-50 rounded-lg border border-red-200">
             <h3 className="text-sm font-medium text-red-700 mb-1">
               Worst Case (5. Perzentil)
             </h3>
-            <p className="text-2xl font-bold text-red-800">
-              {formatCurrency(result.worstCase)}
-            </p>
+            <AutoFitCurrency
+              value={formatCurrency(result.worstCase)}
+              className="font-bold text-red-800"
+            />
             {!inputs.inflationAdjusted && !(inputs.goals?.length > 0) && !(inputs.capitalInflows?.length > 0) && (
               <p className="text-xs text-red-700 mt-1">
                 entspricht ca. {formatPct(irrPaToDisplay)}
               </p>
             )}
           </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+          <div className="min-w-0 text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
             <h3 className="text-sm font-medium text-ff-primary mb-1">
               Erwartetes Szenario
             </h3>
-            <p className="text-2xl font-bold text-ff-primary">
-              {formatCurrency(
+            <AutoFitCurrency
+              value={formatCurrency(
                 chartData[chartData.length - 1]?.expected || result.median,
               )}
-            </p>
+              className="font-bold text-ff-primary"
+            />
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+          <div className="min-w-0 text-center p-4 bg-green-50 rounded-lg border border-green-200">
             <h3 className="text-sm font-medium text-green-700 mb-1">
               Optimistisches Szenario
             </h3>
-            <p className="text-2xl font-bold text-green-800">
-              {formatCurrency(
+            <AutoFitCurrency
+              value={formatCurrency(
                 chartData[chartData.length - 1]?.optimistic || result.bestCase,
               )}
-            </p>
+              className="font-bold text-green-800"
+            />
           </div>
         </div>
 
@@ -584,8 +667,10 @@ export default function CalculationResults({
                   />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `${formatNumber(value / 1000)}k€`}
-                    width={50}
+                    tickFormatter={formatYAxisLabel}
+                    ticks={yAxisTicks}
+                    domain={[0, yAxisDomainMax]}
+                    width={75}
                   />
                   <Tooltip
                     formatter={(value: number, name: string) => [

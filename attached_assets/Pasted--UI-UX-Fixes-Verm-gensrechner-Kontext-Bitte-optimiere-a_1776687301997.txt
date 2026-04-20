@@ -1,0 +1,97 @@
+(UI/UX Fixes Vermögensrechner)
+
+Kontext:
+Bitte optimiere ausschließlich die Darstellung (UI/UX) der bestehenden Anwendung.
+Wichtig: Keine Änderungen an Berechnungen, Datenlogik oder Funktionen.
+
+🎯 1. Ergebniskacheln (Top-Bereich)
+
+Problem:
+Bei großen Beträgen (z. B. über 10.000.000 €) ragen die Zahlen aus den Kacheln heraus.
+
+Ziel:
+Saubere, responsive Darstellung – unabhängig von der Höhe des Betrags.
+
+Umsetzung:
+
+Zahlen IMMER horizontal und vertikal zentrieren
+Dynamische Schriftgröße je nach Länge des Betrags:
+Standardgröße für normale Werte
+Reduzierte Schriftgröße bei großen Zahlen
+Optional: Nutzung von clamp() für responsive Typography
+
+Beispiel (CSS-Ansatz):
+
+.result-value {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  line-height: 1.2;
+
+  /* Dynamische Schriftgröße */
+  font-size: clamp(18px, 2.5vw, 32px);
+
+  /* Verhindert Überlaufen */
+  word-break: break-word;
+}
+
+Zusätzlich:
+
+Maximal 2 Zeilen erlauben
+Optional: Zahlenformat kompakter darstellen (z. B. 10,2 Mio. € bei extrem großen Werten – nur visuell, keine Logikänderung!)
+
+👉 Format gemäß Style Guide: Betrag mit Leerzeichen vor € (z. B. 10.000.000 €)
+
+📊 2. Y-Achse im Chart (Vermögensentwicklung)
+
+Problem:
+Beschriftung wird bei großen Werten (Millionenbereich) unleserlich (z. B. „1000000k€“).
+
+Ziel:
+Klare, gut lesbare Achsenbeschriftung.
+
+Umsetzung:
+
+Werte automatisch formatieren:
+ab 1.000 → „1k“
+ab 1.000.000 → „1 Mio.“
+ab 1.000.000.000 → „1 Mrd.“
+Einheitliche Darstellung im gesamten Chart
+
+Beispiel Formatter (JS):
+
+function formatYAxis(value) {
+  if (value >= 1_000_000_000) {
+    return (value / 1_000_000_000).toFixed(1) + " Mrd.";
+  }
+  if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(1) + " Mio.";
+  }
+  if (value >= 1_000) {
+    return (value / 1_000).toFixed(0) + "k";
+  }
+  return value;
+}
+
+Zusätzlich:
+
+Keine Überlappungen der Labels
+Genügend Abstand zur Achse (padding)
+Schriftgröße leicht reduzieren bei hohen Skalierungen
+🎨 3. Allgemeine UI-Verbesserungen
+Konsistente Zentrierung aller Beträge
+Einheitliche Darstellung großer Zahlen
+Keine abgeschnittenen Inhalte
+Responsives Verhalten auf allen Bildschirmgrößen
+❗ Wichtige Einschränkung
+❌ Keine Änderungen an:
+Berechnungen
+Renditelogik
+Datenstruktur
+Simulationen
+✅ Nur:
+CSS
+Formatierung
+Darstellung (Frontend)

@@ -1,0 +1,121 @@
+Bitte ändere ausschließlich die UI/Darstellung der drei Ergebnisboxen im oberen Bereich des Vermögensrechners.
+Wichtig: Keine Änderungen an Berechnungen, Simulationen, Werten, Datenstruktur oder Business-Logik.
+
+Relevante Datei
+
+Die Darstellung der drei Ergebniswerte liegt sehr wahrscheinlich hier:
+
+client/src/components/calculation-results.tsx
+
+Die Beträge werden dort für diese drei Boxen ausgegeben:
+
+Worst Case
+Erwartetes Szenario
+Optimistisches Szenario
+
+Die Beträge selbst kommen aus formatCurrency(...).
+Die Funktion formatCurrency in client/src/lib/financial-calculations.ts soll nicht fachlich verändert werden. Falls nötig, darf sie nur weiterverwendet werden.
+Die eigentliche Lösung soll in der Komponente / im Styling der Ergebnisboxen erfolgen.
+
+Problem
+
+Wenn die Beträge groß werden, vor allem über 1 Mio. €, ragen sie optisch über die Box hinaus.
+Der restliche Inhalt der Boxen passt gut.
+Es soll nur der Betrag automatisch kleiner dargestellt werden, sobald er zu lang wird.
+
+Ziel
+
+Die Euro-Beträge in den drei oberen Boxen sollen:
+
+immer sauber zentriert sein
+nie über den Rand der Box hinausragen
+bei längeren Werten automatisch eine kleinere Schriftgröße bekommen
+der übrige Text in der Box soll unverändert bleiben
+keine Zeilenumbrüche im Betrag erzeugen
+keine Änderung am Zahlenwert selbst
+keine verkürzte Darstellung wie „10,2 Mio.“ oder Ähnliches
+weiterhin der volle formatierte Betrag
+Gewünschte Umsetzung
+
+Bitte füge für den Betrag eine dynamische Schriftgrößenlogik ein, die sich an der Länge des formatierten Strings orientiert.
+
+Beispielansatz:
+
+normale Schriftgröße bei kurzen Beträgen
+etwas kleinere Schriftgröße bei langen Beträgen
+noch kleinere Schriftgröße bei sehr langen Beträgen
+
+Zum Beispiel über:
+
+String-Länge des formatierten Betrags
+oder responsives clamp()
+oder bedingte Tailwind-Klassen / CSS-Klassen
+
+Wichtig:
+
+Nur der Betrag soll skalieren
+Überschrift und Zusatztext darunter sollen unverändert bleiben
+Technische Vorgabe
+
+Bitte prüfe in calculation-results.tsx, wo genau die drei formatCurrency(...)-Ausgaben in den oberen Karten gerendert werden, und kapsle den Betrag jeweils in ein eigenes Element mit dynamischer Klasse.
+
+Beispielidee:
+
+const getResultFontSizeClass = (formattedValue: string) => {
+  if (formattedValue.length > 14) return "text-2xl md:text-3xl";
+  if (formattedValue.length > 11) return "text-3xl md:text-4xl";
+  return "text-4xl md:text-5xl";
+};
+
+Dann z. B.:
+
+const worstCaseFormatted = formatCurrency(result.worstCase);
+const expectedFormatted = formatCurrency(chartData[chartData.length - 1]?.expected || result.median);
+const optimisticFormatted = formatCurrency(chartData[chartData.length - 1]?.optimistic || result.bestCase);
+
+Und im JSX:
+
+<div className={cn(
+  "font-bold text-center leading-tight whitespace-nowrap",
+  getResultFontSizeClass(worstCaseFormatted)
+)}>
+  {worstCaseFormatted}
+</div>
+
+Dasselbe bitte für alle drei Boxen umsetzen.
+
+Styling-Anforderungen
+
+Für die Beträge bitte sicherstellen:
+
+text-center
+leading-tight
+whitespace-nowrap
+kein Overflow über den Kartenrand
+sauber vertikal und horizontal zentriert
+Box-Höhe soll stabil bleiben
+nur der Betrag skaliert, nicht die ganze Karte
+
+Optional, falls nötig:
+
+overflow-hidden
+etwas weniger horizontales Padding nur im Zahlenbereich
+min-h für stabile Kartenhöhe
+Wichtig
+
+Nicht ändern:
+
+formatCurrency() Logik
+Berechnung der Szenarien
+Renditen
+Chart
+Y-Achse
+Werte oder Datenquellen
+
+Nur ändern:
+
+Rendering des Betrags in den drei oberen Ergebnisboxen
+CSS / Tailwind-Klassen / UI-Verhalten
+Erwartetes Ergebnis
+
+Auch bei sehr großen Werten wie mehreren Millionen Euro soll der Betrag vollständig sichtbar bleiben und sich automatisch in der Schriftgröße anpassen, ohne aus der Box herauszuragen.

@@ -1,0 +1,130 @@
+Bitte überarbeite ausschließlich die Darstellung der Y-Achse im Chart meines Entnahmeplanrechners.
+
+❗ Wichtig
+Keine Änderungen an Berechnungen, Simulationen oder Daten
+Es geht nur um die visuelle Darstellung
+🎯 Ziel
+
+Die Y-Achse soll sich automatisch am höchsten Wert des optimistischen Szenarios orientieren und dabei:
+
+klar lesbar
+ruhig
+logisch abgestuft
+
+sein.
+
+✅ Anforderungen
+1. Dynamische Skalierung
+Die Y-Achse richtet sich immer nach dem höchsten Wert (optimistisches Szenario)
+Die Schrittgröße wird automatisch sinnvoll gewählt
+2. Nur „runde“ Werte anzeigen
+
+❌ Nicht erlaubt:
+
+11 Mio.
+16,5 Mio.
+3,7 Mio.
+
+✅ Stattdessen:
+
+10 Mio.
+15 Mio.
+20 Mio.
+3. Dynamische Schrittgrößen je nach Höhe
+
+Die Achse soll sich an die Größenordnung anpassen:
+
+Kleine Werte:
+
+10.000 €
+20.000 €
+50.000 €
+100k €
+
+Mittlere Werte:
+
+250k €
+500k €
+1 Mio.
+
+Große Werte:
+
+1 Mio.
+5 Mio.
+10 Mio.
+15 Mio.
+
+👉 Wichtig:
+Die Achse soll nicht immer in Millionen laufen, sondern sich flexibel anpassen.
+
+📊 Beispiele
+
+Max = 70.000 €
+
+0 €, 10.000 €, 20.000 €, 30.000 €, …
+
+Max = 420.000 €
+
+0 €, 100k €, 200k €, 300k €, 400k €, 500k €
+
+Max = 3.200.000 €
+
+0 Mio., 1 Mio., 2 Mio., 3 Mio., 4 Mio.
+
+Max = 17.800.000 €
+
+0 Mio., 5 Mio., 10 Mio., 15 Mio., 20 Mio.
+⚙️ Technische Vorgabe
+
+Verwende eine dynamische Tick-Berechnung mit „nice numbers“.
+
+Erlaubte Schrittgrößen:
+
+10.000
+20.000
+50.000
+100.000
+200.000
+500.000
+1.000.000
+2.000.000
+5.000.000
+10.000.000
+📏 Achsen-Regeln
+Start immer bei 0
+Ende knapp über dem höchsten Wert
+4–6 Tick-Werte
+gleichmäßige Abstände
+🏷️ Formatierung der Labels
+
+Unter 1 Mio.:
+
+10.000 €
+100k €
+500k €
+
+Ab 1 Mio.:
+
+1 Mio.
+2 Mio.
+5 Mio.
+10 Mio.
+
+👉 Keine Dezimalstellen:
+
+❌ 1,5 Mio.
+❌ 16,5 Mio.
+✅ nur ganze Werte
+🔁 Umsetzung
+
+Falls die Chart-Library automatisch Ticks generiert:
+➡️ Diese bitte deaktivieren und durch eigene „saubere“ Ticks ersetzen
+
+🎯 Erwartetes Ergebnis
+
+Die Y-Achse soll:
+
+in jeder Größenordnung gut lesbar sein
+professionell wirken
+automatisch auf kleine und große Werte reagieren
+keine „krummen“ Zahlen mehr anzeigen

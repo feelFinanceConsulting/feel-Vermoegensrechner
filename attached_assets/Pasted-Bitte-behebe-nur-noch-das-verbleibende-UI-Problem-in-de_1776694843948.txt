@@ -1,0 +1,124 @@
+Bitte behebe nur noch das verbleibende UI-Problem in den drei Ergebnisboxen oben.
+
+Problem
+
+Die Beträge werden jetzt zwar besser skaliert, aber rechts werden noch die letzten 1–2 Ziffern abgeschnitten.
+Beispiele:
+
+statt € 160.481,14 sieht man € 160.481,14 nicht vollständig
+statt € 481.952,00 fehlt rechts etwas
+statt € 706.685,70 fehlen die letzten Stellen
+Wichtig
+Keine Änderungen an Berechnung, Logik oder Zahlenwerten
+Keine Änderung an formatCurrency()
+Nur UI / Rendering / Layout korrigieren
+Ziel
+
+Die Beträge in den drei Boxen sollen:
+
+vollständig sichtbar sein
+nie rechts abgeschnitten werden
+weiterhin zentriert bleiben
+weiterhin automatisch kleiner werden, wenn nötig
+immer in einer Zeile bleiben
+den verfügbaren Platz korrekt nutzen
+Wahrscheinliche Ursache
+
+Bitte prüfe die aktuelle Auto-Fit-Komponente bzw. den Betrag-Wrapper auf diese Punkte:
+
+overflow-hidden schneidet rechts ab, obwohl der Text fast passt
+Die Breite wird zu knapp gemessen, weil Padding / Border / Gap nicht berücksichtigt werden
+Der Text sitzt in einem Container ohne ausreichend horizontalen Innenabstand
+Es wird nur auf clientWidth geprüft, obwohl für sauberes Fitting ein kleiner Sicherheitspuffer nötig ist
+Eventuell verhindert transform, scale oder ein verschachteltes Flex/Grid-Layout die exakte Breitenberechnung
+Bitte so korrigieren
+1. Sicherheitsabstand einbauen
+
+Bei der Berechnung der maximal verfügbaren Breite bitte nicht die volle Containerbreite verwenden, sondern einen kleinen Puffer abziehen, z. B.:
+
+const maxWidth = container.clientWidth - 8;
+
+oder falls nötig:
+
+const maxWidth = container.clientWidth - 12;
+
+Damit wird verhindert, dass der Text optisch noch am rechten Rand abgeschnitten wird.
+
+2. Horizontales Padding im Zahlenbereich prüfen
+
+Bitte dem Zahlen-Wrapper etwas Luft geben, z. B.:
+
+className="w-full min-w-0 flex items-center justify-center px-2"
+
+Falls schon Padding vorhanden ist, bitte sicherstellen, dass dieses auch in die Messung einbezogen wird.
+
+3. Clipping nur wenn wirklich nötig
+
+Falls aktuell overflow-hidden direkt am falschen Element sitzt, bitte anpassen.
+
+Bevorzugt:
+
+äußerer Wrapper darf Layout stabilisieren
+der eigentliche Text soll nicht unnötig geclippt werden
+
+Zum Beispiel eher so:
+
+<div ref={containerRef} className="w-full min-w-0 flex items-center justify-center px-2">
+  <div className="max-w-full overflow-visible">
+    ...
+  </div>
+</div>
+
+Falls overflow-hidden notwendig ist, dann bitte nur dort, wo es keine Ziffern abschneidet.
+
+4. Fit-Logik etwas konservativer machen
+
+Bitte die Schrift nicht nur so lange verkleinern, bis scrollWidth <= maxWidth ist, sondern mit kleinem Sicherheitspuffer:
+
+while (text.scrollWidth > maxWidth && size > minSize) {
+  size -= 1;
+  text.style.fontSize = `${size}px`;
+}
+
+mit:
+
+const maxWidth = container.clientWidth - 10;
+
+So passt der Text nicht nur technisch, sondern auch optisch sauber.
+
+5. Boxen auf min-w-0 prüfen
+
+Bitte sicherstellen, dass auch die Card bzw. das jeweilige Grid-Item min-w-0 gesetzt hat.
+Sonst kann das innere Auto-Fit-Verhalten trotz korrekter Logik fehlschlagen.
+
+Konkrete Erwartung
+
+Diese Werte müssen vollständig sichtbar sein:
+
+€ 160.481,14
+€ 481.952,00
+€ 706.685,70
+
+Es darf keine Ziffer rechts abgeschnitten werden.
+
+Falls bereits eine AutoFit-Komponente existiert
+
+Bitte nicht komplett neu bauen, sondern nur diese Punkte nachschärfen:
+
+Messung mit Sicherheitsabstand
+etwas horizontales Innenpadding
+Clipping reduzieren
+min-w-0 entlang der gesamten Kette sicherstellen
+Wichtig
+
+Nicht ändern:
+
+Berechnungen
+Formatierung der Zahlenlogik
+Szenarien
+Chart
+Y-Achse
+
+Nur ändern:
+
+Auto-Fit Rendering der Beträge in den oberen Ergebnisboxen
